@@ -1,0 +1,101 @@
+============================================================
+Real-data experiment (CB805): cb805_center_student_t_nu10_L129_edge_mu1p00_v05_r01
+alignment = center
+result_dir = _experiment_results/cb805_edge_scan_L129_v05_r01/mu_edge_1p00
+============================================================
+  [Ricker prior] use fixed center Ricker before DTW
+  [Ricker prior] f_dom = 28.32 Hz
+  [Ricker prior] wavelet_length_pts = 129
+  [Ricker prior] CC = 0.103651
+[Initial prior] source = center_ricker_for_DTW
+[Initial prior] CC = 0.103651
+  [DTW-iter] phased candidate DTW begins
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.39 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1037 / 0.1191
+  [DTW-envelope] Env before/after = -0.0358 / -0.0530
+  [DTW-envelope] maxlag after = 0.1234, lag = -2.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.40 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1191 / 0.1277
+  [DTW-envelope] Env before/after = -0.0530 / -0.0688
+  [DTW-envelope] maxlag after = 0.1277, lag = 0.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-iter] phase envelope: accepted 2/2
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.77 ms
+  [DTW-waveform] CC before/after = 0.1277 / 0.1385
+  [DTW-waveform] Env before/after = -0.0688 / -0.0667
+  [DTW-waveform] maxlag after = 0.1385, lag = 0.0 ms
+  [DTW-waveform] TWT max change = 0.93 ms
+  [DTW-waveform] accept = True
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.71 ms
+  [DTW-waveform] CC before/after = 0.1385 / 0.1485
+  [DTW-waveform] Env before/after = -0.0667 / -0.0649
+  [DTW-waveform] maxlag after = 0.1487, lag = -1.0 ms
+  [DTW-waveform] TWT max change = 0.86 ms
+  [DTW-waveform] accept = True
+  [DTW-iter] phase waveform: accepted 2/2
+  [DTW-iter] keep fixed initial wavelet before fine DTW
+  [DTW-fine] window = 9 samples
+  [DTW-fine] alpha candidates = [0.0, 0.01, 0.02, 0.04, 0.06]
+  [DTW-fine] best alpha/sign = 0.060 / +1
+  [DTW-fine] shift range = -0.48 ~ 0.30 ms
+  [DTW-fine] CC before/after = 0.1485 / 0.1554
+  [DTW-fine] Env before/after = -0.0649 / -0.0648
+  [DTW-fine] maxlag after = 0.1555, lag = -1.0 ms
+  [DTW-fine] TWT max change = 0.30 ms
+  [DTW-fine] accept = True
+  [DTW-iter] phase fine: accepted 1/1
+  [warning] strict stationary prior rejected.
+  [reason] 平稳子波主峰位置不满足约束: peak_metric=64 samples, alignment=center. 说明该平稳子波可能正在吸收残余时差，不建议作为物理先验。
+  [fallback] using center_ricker_prior_after_DTW.
+[DTW] CC = 0.155403
+[After-DTW prior] source = center_ricker_prior_after_DTW
+[After-DTW prior] CC = 0.155403
+
+--- Step 2: 固定 r_work_final，反演时变子波 ---
+========== Robust time-varying wavelet inversion ==========
+  N_time                = 2546
+  dt                    = 0.001000 s
+  wavelet_length        = 129
+  data_window_length    = 387
+  estimate_step_samples = 5
+  estimate_step_ms      = 5.00 ms
+  mu1                   = 0.2
+  mu2                   = 6.0
+  mu_dc                 = 15.0
+  mu_prior              = 0.8
+  mu_time               = 4.0
+  mu_edge               = 1.0
+  edge_fraction         = 0.12
+  edge_taper            = cosine
+  energy_threshold      = 1.162267e-02
+  damping_ratio         = 0.0
+  svd_cutoff_ratio      = 0.001
+  min_effective_rank    = 16
+  max_peak_shift        = 15 samples
+  time_smooth_sigma     = 30.00 samples
+  wavelet_smooth_sigma  = 4.00 samples
+  has_wavelet_prior     = True
+  loss_type             = student_t
+  student_nu            = 10.0
+  irls_max_iter         = 12
+  irls_tol              = 0.0003
+  robust_scale_floor    = 1.953573e-02
+  robust_weight_floor   = 0.001
+  min_effective_ratio   = 0.3
+  outlier_weight_thresh = 0.5
+  store_weight_map      = True

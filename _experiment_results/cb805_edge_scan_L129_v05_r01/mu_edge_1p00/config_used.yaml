@@ -1,0 +1,139 @@
+experiment:
+  name: cb805_center_student_t_nu10_L129_edge_mu1p00_v05_r01
+  well: CB805
+  alignment: center
+paths:
+  input_npz: "_experiment_data/initial_model_data/initial_real_model_data_CB805.npz"
+  result_dir: "_experiment_results/cb805_edge_scan_L129_v05_r01/mu_edge_1p00"
+display:
+  show_figures: true
+
+wavelet:
+  alignment: center
+  length_s: 0.129
+  data_window_factor: 3.0
+  center_peak_allowed_ms: [-15.0, 15.0]
+  causal_peak_allowed_ms: [0.0, 40.0]
+
+stationary:
+  mu1: 0.2
+  mu2: 2.0
+  mu_dc: 15.0
+  damping_ratio: 0.0       # 仅当 simple SVD 确实采用截断伪逆
+  svd_cutoff_ratio: 0.001
+  peak_lock: true
+
+dtw:
+  enable: true
+  center_max_peak_shift_ms: 15.0
+  phase_specs:
+    - phase: envelope
+      n_iter: 2
+      alpha_candidates: [0.01, 0.05, 0.10, 0.15]
+      max_shift_ms: 15.0
+      smooth_ms: 20.0
+      accept_min_cc_gain: 0.001
+      accept_env_drop: 0.02
+      accept_max_lag_ms: 10.0
+    - phase: waveform
+      n_iter: 2
+      alpha_candidates: [0.01, 0.03, 0.06, 0.10]
+      max_shift_ms: 10.0
+      smooth_ms: 15.0
+      accept_min_cc_gain: 0.0015
+      accept_env_drop: 0.03
+      accept_max_lag_ms: 8.0
+    - phase: fine
+      n_iter: 1
+      alpha_candidates: [0.01, 0.02, 0.04, 0.06]
+      max_shift_ms: 6.0
+      smooth_ms: 8.0
+      accept_min_cc_gain: 0.0005
+      accept_env_drop: 0.03
+      accept_max_lag_ms: 6.0
+
+tv_wavelet:
+  # 第二阶段：最小可用 Student-t IRLS。
+  loss_type: "student_t"
+  student_nu: 10.0
+  irls_max_iter: 12
+  irls_tol: 3.0e-4
+  robust_scale_mode: "local_mad"
+  robust_scale_floor_ratio: 0.05
+  robust_weight_floor: 1.0e-3
+  min_effective_sample_ratio: 0.30
+  robust_fallback: "l2"
+
+  # 第三阶段：诊断与权重热图。
+  robust_outlier_weight_threshold: 0.5
+  store_weight_map: true
+  # all: 显示全部 IRLS 窗口，并在右侧标记是否通过后续 QC。
+  # 也可设为 robust_used 或 post_qc_valid。
+  weight_map_row_filter: "all"
+
+  mu1: 0.20
+  mu2: 6.0
+  mu_dc: 15.0
+  mu_prior_strict: 1.0
+  mu_prior_fallback: 0.8
+  mu_time: 4.0
+  # 只约束 TV 局部子波首尾能量；mu=0 时严格沿用原增广矩阵和 SVD 路径。
+  edge_penalty_enabled: true
+  mu_edge: 1.0
+  edge_fraction: 0.12
+  edge_taper: "cosine"
+  energy_percentile: 20.0
+  damping_ratio: 0.0       # simple SVD 条件下
+  svd_cutoff_ratio: 0.001
+  estimate_step_ms: 5.0
+  time_smooth_ms: 30.0
+  wavelet_smooth_sigma: 4.0
+  reject_ill_conditioned: true
+  reject_amplitude_jumps: true
+
+comparison:
+  # 当前仓库中的现成 L2 配置属于 CB803，不能作为 CB805 公平基线。
+  enable: false
+  l2_result_dir: "_experiment_results/cb805_center_final_smooth_v01"
+  output_subdir: "l2_student_t_comparison"
+  strict_fairness: true
+
+q:
+  enable: false
+  f_min_base: 8.0
+  f_min_ratio_of_f_dom: 0.3
+  f_max_cap: 60.0
+  f_max_ratio_of_f_dom: 2.0
+  ref_range: [0.20, 0.35]
+  deep_range: [0.65, 0.85]
+  Q_min: 20.0
+  Q_max: 200.0
+  freeze_above_ref: true
+  max_cc_drop_vs_tv: 0.005
+  max_env_drop_vs_tv: 0.03
+  max_lag_ms: 8.0
+
+local_wavelet_fallback:
+  enable: false
+  peak_limit_ms: 15.0
+  energy_min: 0.15
+  pad_ms: 0.0
+  alpha_smooth_samples: 15.0
+  use_shape_qc: true
+  side_lobe_limit_reliable: 0.75
+  side_lobe_limit_fallback: 0.95
+  side_lobe_guard_ms: 12.0
+  edge_energy_limit_reliable: 0.15
+  edge_energy_limit_fallback: 0.30
+  edge_fraction: 0.15
+
+acceptance:
+  min_gain_vs_dtw: 0.005
+  min_gain_vs_stationary: 0.02
+  max_env_drop_vs_stationary: 0.02
+  max_lag_ms: 8.0
+  center_peak_median_ms: 6.0
+  center_peak_abs_p90_ms: 17.0
+  causal_peak_extra_margin_ms: 2.0
+  tolerance_ms: 1.0e-6
+  tolerance_cc: 1.0e-12

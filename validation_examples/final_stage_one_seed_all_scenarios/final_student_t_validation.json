@@ -1,0 +1,47 @@
+{
+  "decision_rule": "干净数据非劣、压力场景平均改善与胜率达标、最差场景退化受控，且有效窗口比例不得明显下降。",
+  "thresholds": {
+    "clean_noninferiority_margin": 0.005,
+    "minimum_stress_win_rate": 0.6,
+    "minimum_mean_stress_gain": 0.0,
+    "maximum_worst_scenario_degradation": 0.01,
+    "maximum_valid_ratio_drop": 0.05,
+    "ci_level": 0.95
+  },
+  "candidates": [
+    {
+      "method_key": "student_t_nu10",
+      "student_nu": 10.0,
+      "clean_nrmse_degradation_mean": -0.0018414802792222976,
+      "clean_nrmse_degradation_ci_low": -0.0018414802792222976,
+      "clean_nrmse_degradation_ci_high": -0.0018414802792222976,
+      "mean_stress_nrmse_gain": 0.009030389267043068,
+      "mean_stress_nrmse_gain_ci_low": 0.002612687401119563,
+      "mean_stress_nrmse_gain_ci_high": 0.019497885891349567,
+      "stress_win_rate": 0.875,
+      "worst_scenario_nrmse_gain": -0.0003288761349572733,
+      "maximum_valid_ratio_drop": -0.0,
+      "scenario_mean_gains": {
+        "ar1_correlated_noise": 0.0010955261973771002,
+        "coherent_burst": 0.0034752382393293466,
+        "combined_error": 0.038878328949972826,
+        "impulse_noise": -0.0003288761349572733,
+        "prior_frequency_high": 0.001515724031858172,
+        "reflectivity_amplitude_error": 0.004287503703120851,
+        "reflectivity_missing_events": 0.018073866877046874,
+        "reflectivity_time_jitter": 0.0052458022725966474
+      },
+      "checks": {
+        "clean_noninferiority": true,
+        "positive_mean_stress_gain": true,
+        "stress_win_rate": true,
+        "worst_scenario_guard": true,
+        "valid_ratio_guard": true
+      },
+      "validated": true
+    }
+  ],
+  "final_validation_passed": true,
+  "recommended_method_key": "student_t_nu10",
+  "recommended_student_nu": 10.0
+}

@@ -1,0 +1,43 @@
+{
+  "decision_rule": "干净数据非劣、压力场景平均改善与胜率达标、最差场景退化受控，且有效窗口比例不得明显下降。",
+  "thresholds": {
+    "clean_noninferiority_margin": 0.005,
+    "minimum_stress_win_rate": 0.6,
+    "minimum_mean_stress_gain": 0.0,
+    "maximum_worst_scenario_degradation": 0.01,
+    "maximum_valid_ratio_drop": 0.05,
+    "ci_level": 0.95
+  },
+  "candidates": [
+    {
+      "method_key": "student_t_nu10",
+      "student_nu": 10.0,
+      "clean_nrmse_degradation_mean": 0.0005813478370703777,
+      "clean_nrmse_degradation_ci_low": 2.3764597814890376e-05,
+      "clean_nrmse_degradation_ci_high": 0.001138931076325865,
+      "mean_stress_nrmse_gain": 0.03216366520164612,
+      "mean_stress_nrmse_gain_ci_low": 0.007945753600098044,
+      "mean_stress_nrmse_gain_ci_high": 0.06744579693554409,
+      "stress_win_rate": 0.875,
+      "worst_scenario_nrmse_gain": 8.432105857006031e-05,
+      "maximum_valid_ratio_drop": -0.0,
+      "scenario_mean_gains": {
+        "combined_error": 0.047057878560285094,
+        "impulse_noise": 0.0049218115542302605,
+        "prior_frequency_high": 8.432105857006031e-05,
+        "reflectivity_missing_events": 0.07659064963349907
+      },
+      "checks": {
+        "clean_noninferiority": true,
+        "positive_mean_stress_gain": true,
+        "stress_win_rate": true,
+        "worst_scenario_guard": true,
+        "valid_ratio_guard": true
+      },
+      "validated": true
+    }
+  ],
+  "final_validation_passed": true,
+  "recommended_method_key": "student_t_nu10",
+  "recommended_student_nu": 10.0
+}

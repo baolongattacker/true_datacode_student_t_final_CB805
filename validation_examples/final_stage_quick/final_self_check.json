@@ -1,0 +1,75 @@
+{
+  "project_root": "/mnt/data/true_datacode_final_package",
+  "passed": true,
+  "compile_failures": [],
+  "dependencies": {
+    "numpy": true,
+    "scipy": true,
+    "matplotlib": true,
+    "yaml": true,
+    "pandas": true,
+    "dtaidistance": false
+  },
+  "missing_required_dependencies": [],
+  "imports": [
+    {
+      "module": "utils.wavelet_inversion_robust",
+      "ok": true,
+      "path": "/mnt/data/true_datacode_final_package/utils/wavelet_inversion_robust.py",
+      "inside_project": true,
+      "contains_legacy_code_dir": false
+    },
+    {
+      "module": "stages.stage_stationary",
+      "ok": true,
+      "path": "/mnt/data/true_datacode_final_package/stages/stage_stationary.py",
+      "inside_project": true,
+      "contains_legacy_code_dir": false
+    },
+    {
+      "module": "stages.stage_dtw",
+      "ok": true,
+      "path": "/mnt/data/true_datacode_final_package/stages/stage_dtw.py",
+      "inside_project": true,
+      "contains_legacy_code_dir": false
+    },
+    {
+      "module": "stages.stage_tv_wavelet",
+      "ok": true,
+      "path": "/mnt/data/true_datacode_final_package/stages/stage_tv_wavelet.py",
+      "inside_project": true,
+      "contains_legacy_code_dir": false
+    },
+    {
+      "module": "stages.stage_q_constraint",
+      "ok": true,
+      "path": "/mnt/data/true_datacode_final_package/stages/stage_q_constraint.py",
+      "inside_project": true,
+      "contains_legacy_code_dir": false
+    },
+    {
+      "module": "experiments.run_real_experiment",
+      "ok": true,
+      "path": "/mnt/data/true_datacode_final_package/experiments/run_real_experiment.py",
+      "inside_project": true,
+      "contains_legacy_code_dir": false
+    },
+    {
+      "module": "experiments.run_synthetic_student_t_benchmark",
+      "ok": true,
+      "path": "/mnt/data/true_datacode_final_package/experiments/run_synthetic_student_t_benchmark.py",
+      "inside_project": true,
+      "contains_legacy_code_dir": false
+    },
+    {
+      "module": "experiments.run_final_student_t_stress_test",
+      "ok": true,
+      "path": "/mnt/data/true_datacode_final_package/experiments/run_final_student_t_stress_test.py",
+      "inside_project": true,
+      "contains_legacy_code_dir": false
+    }
+  ],
+  "wrong_import_paths": [],
+  "pytest_return_code": 0,
+  "notes": "dtaidistance is required only when running the real DTW stage; the source tree can otherwise be imported and tested without it."
+}

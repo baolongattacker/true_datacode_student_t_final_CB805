@@ -1,0 +1,68 @@
+{
+  "selection_principle": "先满足干净数据非劣、污染数据胜率和全局低权重误报率约束，再选择污染场景下相对波子 NRMSE 改善最大的固定 nu。",
+  "thresholds": {
+    "clean_noninferiority_margin_absolute_nrmse": 0.005,
+    "minimum_contaminated_win_rate": 0.6,
+    "maximum_global_false_positive_rate": 0.1,
+    "ci_level": 0.95
+  },
+  "candidates": [
+    {
+      "method_key": "student_t_nu10",
+      "student_nu": 10.0,
+      "clean_nrmse_degradation_mean": -0.0011143280209843336,
+      "clean_nrmse_degradation_ci_low": -0.001647752717504898,
+      "clean_nrmse_degradation_ci_high": -0.000580903324463769,
+      "contaminated_relative_nrmse_gain_mean": 0.04806673224731274,
+      "contaminated_relative_nrmse_gain_ci_low": 0.03456249613350846,
+      "contaminated_relative_nrmse_gain_ci_high": 0.061570968361117015,
+      "contaminated_win_rate": 1.0,
+      "mean_global_weight_f1": 0.9439393939393939,
+      "mean_global_false_positive_rate": 0.006281407035175879,
+      "clean_noninferiority_pass": true,
+      "contaminated_gain_pass": true,
+      "contaminated_win_rate_pass": true,
+      "global_false_positive_rate_pass": true,
+      "eligible": true
+    },
+    {
+      "method_key": "student_t_nu3",
+      "student_nu": 3.0,
+      "clean_nrmse_degradation_mean": -0.0013129350679727987,
+      "clean_nrmse_degradation_ci_low": -0.002310429130407847,
+      "clean_nrmse_degradation_ci_high": -0.00031544100553775045,
+      "contaminated_relative_nrmse_gain_mean": 0.044028377463812336,
+      "contaminated_relative_nrmse_gain_ci_low": 0.02383823674808207,
+      "contaminated_relative_nrmse_gain_ci_high": 0.0642185181795426,
+      "contaminated_win_rate": 1.0,
+      "mean_global_weight_f1": 0.6560922855082914,
+      "mean_global_false_positive_rate": 0.05778894472361809,
+      "clean_noninferiority_pass": true,
+      "contaminated_gain_pass": true,
+      "contaminated_win_rate_pass": true,
+      "global_false_positive_rate_pass": true,
+      "eligible": true
+    },
+    {
+      "method_key": "student_t_nu5",
+      "student_nu": 5.0,
+      "clean_nrmse_degradation_mean": -0.0016465617017896034,
+      "clean_nrmse_degradation_ci_low": -0.002589602270099002,
+      "clean_nrmse_degradation_ci_high": -0.0007035211334802047,
+      "contaminated_relative_nrmse_gain_mean": 0.047115301910481786,
+      "contaminated_relative_nrmse_gain_ci_low": 0.02792129048210219,
+      "contaminated_relative_nrmse_gain_ci_high": 0.06630931333886138,
+      "contaminated_win_rate": 1.0,
+      "mean_global_weight_f1": 0.841346153846154,
+      "mean_global_false_positive_rate": 0.020100502512562814,
+      "clean_noninferiority_pass": true,
+      "contaminated_gain_pass": true,
+      "contaminated_win_rate_pass": true,
+      "global_false_positive_rate_pass": true,
+      "eligible": true
+    }
+  ],
+  "recommended_method_key": "student_t_nu10",
+  "recommended_student_nu": 10.0,
+  "recommendation_available": true
+}
