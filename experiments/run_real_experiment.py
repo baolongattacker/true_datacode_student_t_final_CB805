@@ -403,9 +403,25 @@ def build_final_wavelet_source_codes(
 ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
     """构造最终 W 的互斥模型来源编码。
 
-    输入 alpha shape=(N_time,)，取值 1 为纯基础候选、0 为纯平稳先验、
-    0~1 之间为局部回退的时间平滑混合。输出编码与五个互斥布尔掩码
-    shape 均为 (N_time,)，只描述最终模型来源，不与候选 W 的插值谱系混用。
+    支持的基础模型包括：
+    - W_est_best_no_Q：TV/hybrid 最终候选；
+    - Q_constrained：Q 约束候选；
+    - stationary_*：历史 stationary prior 模型；
+    - prior_after_DTW_global_fallback：TV/Q 全局验收失败后的最终 prior。
+
+    输入 alpha shape=(N_time,)：
+    - alpha=1 表示纯基础模型；
+    - alpha=0 表示局部 fallback prior；
+    - 0<alpha<1 表示基础模型与局部 prior 的时间平滑混合。
+
+    输出 source_code 和五个互斥布尔掩码，
+    shape 均为 (N_time,)。
+
+    注意：
+    prior_after_DTW_global_fallback 本身是最终全局 prior，
+    调用方应为其提供全 1 的 final_source_alpha，
+    因此其来源编码为 FINAL_SOURCE_STATIONARY_PRIOR，
+    而不是 LOCAL_FALLBACK_PRIOR。
     """
     alpha = np.asarray(local_fallback_alpha, dtype=float).ravel()
     if alpha.size == 0 or not np.all(np.isfinite(alpha)):
@@ -421,7 +437,10 @@ def build_final_wavelet_source_codes(
         base_code = FINAL_SOURCE_TV_CANDIDATE
     elif base_model_type == "Q_constrained":
         base_code = FINAL_SOURCE_Q_CONSTRAINED
-    elif base_model_type.startswith("stationary_"):
+    elif (
+        base_model_type.startswith("stationary_")
+        or base_model_type == "prior_after_DTW_global_fallback"
+    ):
         base_code = FINAL_SOURCE_STATIONARY_PRIOR
     else:
         raise ValueError(f"未知最终模型类型: {base_model_type}")
@@ -2801,6 +2820,7 @@ def _main_impl(config_path: str):
             "raw_tv_peak_abs_p90": float(tv.peak_abs_p90),
             "raw_tv_acceptance_reasons": list(tv.acceptance_reasons),
             "hybrid_tv_W_pass": bool(hybrid_W_pass),
+            "hybrid_tv_acceptance_reasons": list(hybrid_acceptance.reasons),
             "hybrid_tv_CC_direct": float(
                 hybrid_eval["similarity"]["cc_direct"]
             ),

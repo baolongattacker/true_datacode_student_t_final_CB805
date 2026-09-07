@@ -2,6 +2,7 @@
 """固定输入检查：gray-zone 分类、硬回退和主流程输出口径；不代表完整 DTW 验证。"""
 import ast
 import inspect
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -170,3 +171,52 @@ def test_selected_time_log_separates_candidate_and_final(capsys):
     output = capsys.readouterr().out
     for field in ("direct_inverted=0", "strict_reliable=0", "gray_zone=0", "hybrid_support=0", "final_shape_reliable=1", "fallback=1"):
         assert field in output
+
+
+def test_saved_cb805_metrics_keep_hybrid_and_raw_scopes_separate():
+    """检查 CB805 正式保存结果，不重放算法。
+
+    输入：metrics.json 和 result_bundle.npz；子波 shape (N_time,N_wavelet)，
+    peak/lag 单位 ms，CC 无量纲。输出：一致性断言，无文件写入。
+    数学检查：时间差分能量为 mean(sum(diff(W,axis=0)**2,axis=1))。
+    raw 拒绝条件专用于当前 CB805 验收数据，不作为通用物理阈值。
+    """
+    result_dir = Path(__file__).resolve().parents[1] / "_experiment_results/cb805_center_student_t_L129_v01"
+    if not (result_dir / "result_bundle.npz").exists():
+        pytest.skip("需要先完整运行 CB805 主流程，生成正式结果。")
+    metrics = json.loads((result_dir / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["W_pass"] == metrics["hybrid_tv_W_pass"]
+    assert np.isclose(metrics["CC_tv_direct"], metrics["hybrid_tv_CC_direct"])
+    assert np.isclose(metrics["best_lag_ms"], metrics["hybrid_tv_best_lag_ms"])
+    for top_level, hybrid_field in (
+        ("peak_metric_p10", "hybrid_tv_peak_p10_ms"),
+        ("peak_metric_med", "hybrid_tv_peak_median_ms"),
+        ("peak_metric_p90", "hybrid_tv_peak_p90_ms"),
+        ("peak_abs_p90", "hybrid_tv_peak_abs_p90_ms"),
+    ):
+        assert np.isclose(metrics[top_level], metrics[hybrid_field])
+    assert metrics["acceptance_reasons"] == metrics["hybrid_tv_acceptance_reasons"]
+    assert metrics["acceptance_reasons"] == metrics["hybrid_acceptance_reasons"]
+    assert metrics["acceptance_reasons"] == metrics["post_local_fallback_acceptance_reasons"]
+    assert metrics["raw_tv_W_pass"] is False
+    assert metrics["raw_tv_peak_abs_p90"] > 15.0
+    assert metrics["raw_tv_acceptance_reasons"]
+    assert metrics["W_pass_scope"] == "preacceptance_hybrid_candidate"
+
+    # 项目现有 reasons 使用 object dtype；这里只读取本地主流程生成的可信结果。
+    with np.load(result_dir / "result_bundle.npz", allow_pickle=True) as bundle:
+        assert bundle["acceptance_reasons"].tolist() == metrics["acceptance_reasons"]
+        assert bool(bundle["W_pass"]) == metrics["W_pass"]
+        assert np.isclose(float(bundle["peak_abs_p90"]), metrics["peak_abs_p90"])
+        # 保留关键中间量，逐项检查实际写盘 W_final 的时间连续性。
+        wavelet_time_difference = np.diff(bundle["W_final"], axis=0)  # shape: (N_time-1,N_wavelet)
+        difference_energy_per_time = np.sum(wavelet_time_difference ** 2, axis=1)  # shape: (N_time-1,)
+        final_difference_energy = float(np.mean(difference_energy_per_time))
+        assert np.isclose(final_difference_energy, metrics["final_temporal_difference_energy"])
+        strict = bundle["tv_strict_reliable_direct_mask"]
+        gray = bundle["tv_gray_zone_direct_mask"]
+        admissible = bundle["tv_admissible_direct_mask"]
+        rejected = bundle["tv_rejected_direct_mask"]
+        np.testing.assert_array_equal(strict | gray, admissible)
+        np.testing.assert_array_equal(admissible | rejected, bundle["tv_valid_mask"])
+        assert not np.any(strict & gray)
