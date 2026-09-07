@@ -1,0 +1,38 @@
+{
+  "validation_scope": "fixed_saved_raw_tv_replay; DTW and Student-t inversion were not rerun",
+  "input_bundle": "F:\\01JDX_code\\python_code\\seismic_well_tying\\true_datacode_student_t_final_CB805\\_experiment_results\\cb805_center_student_t_L129_v01\\result_bundle.npz",
+  "input_sha256": "44167cbd5b6055e6b5c21252c90cd261e32d7092610634d4d5eec7c1172129c7",
+  "config_path": "F:\\01JDX_code\\python_code\\seismic_well_tying\\true_datacode_student_t_final_CB805\\configs\\cb805_center_student_t_L129_v01.yaml",
+  "config_sha256": "3abc6f0c9482a7b20ba8215b458315b2d1a251395ec899c3dfb0da339d7a3fa6",
+  "source_sha256": "53b84b75292165a32a0108cabafe68d3eab989d30efdb4e8c8564c439c2ffe85",
+  "W_shape": [
+    2546,
+    129
+  ],
+  "mask_shape": [
+    2546
+  ],
+  "valid_direct_count": 70,
+  "strict_reliable_direct_count": 42,
+  "gray_zone_direct_count": 20,
+  "admissible_direct_count": 62,
+  "rejected_direct_count": 8,
+  "short_gap_limit_ms": 60.0,
+  "tv_support_sample_ratio": 0.4799685781618225,
+  "hard_prior_sample_ratio": 0.5200314218381775,
+  "raw_tv_CC_direct": 0.4355050262828873,
+  "old_hybrid_CC_direct": 0.2002780227892532,
+  "hybrid_CC_direct": 0.28798177471012804,
+  "hybrid_best_lag_ms": 0.0,
+  "hybrid_peak_summary_ms": {
+    "p10": -1.0000000000000009,
+    "median": 0.0,
+    "p90": 0.0,
+    "abs_p90": 1.0000000000000009
+  },
+  "hybrid_peak_violation_ratio": 0.0,
+  "hybrid_W_pass": true,
+  "hybrid_acceptance_reasons": [],
+  "regression_result": "29 passed, 17 subtests passed",
+  "regression_command": "D:/miniconda/envs/myenv/python.exe -B -m pytest tests/test_hybrid_gray_zone.py tests/test_phase1_regression.py tests/test_edge_penalty.py tests/test_student_t_helpers.py tests/test_constant_phase_wavelet.py -q -p no:cacheprovider"
+}

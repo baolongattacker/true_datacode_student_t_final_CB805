@@ -1206,6 +1206,7 @@ def plot_all(
         side_lobe_ratio=side_lobe_ratio,
         edge_energy_ratio=edge_energy_ratio,
         print_selected_qc=True,
+        candidate_diagnostics=candidate_diagnostics,
     )
 
     # 新增图 11：将代表性子波按照中心时间展开，观察时变演化连续性。
@@ -1231,6 +1232,7 @@ def plot_all(
         side_lobe_ratio=side_lobe_ratio,
         edge_energy_ratio=edge_energy_ratio,
         print_selected_qc=True,
+        candidate_diagnostics=candidate_diagnostics,
     )
     paths["peak_metric"] = plot_peak_metric(
         t_work=t_work,

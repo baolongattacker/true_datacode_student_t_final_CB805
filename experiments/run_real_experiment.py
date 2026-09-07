@@ -549,6 +549,69 @@ def build_reliable_wavelet_mask(
     return reliable_mask, fallback_mask, wavelet_energy_norm, shape_fallback_mask
 
 
+def build_admissible_direct_masks(
+    *,
+    valid_mask: np.ndarray,
+    strict_reliable_mask: np.ndarray,
+    peak_metric_ms: np.ndarray,
+    wavelet_energy_norm: np.ndarray,
+    pointwise_fallback_request_mask: np.ndarray,
+    provenance_forced_prior_mask: np.ndarray,
+    peak_limit_ms: float,
+    energy_min: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    将有效直接反演中心划分为 strict、gray 和 rejected，不引入新阈值。
+
+    输入：所有数组 shape (N_time,)。valid/strict 为直接反演及严格 QC 掩码；
+    peak_metric_ms 为峰值位置（ms），wavelet_energy_norm 为无量纲归一化能量；
+    pointwise_fallback_request_mask 为已有硬回退请求（含 pad 扩展），
+    provenance_forced_prior_mask 标记外推、先验填充及不可用来源。
+    peak_limit_ms 单位 ms，energy_min 无量纲，均沿用现有配置。
+    输出：admissible、gray、rejected 三个布尔掩码，均为 shape (N_time,)。
+    数学作用：admissible = valid & peak_ok & energy_ok & ~hard & ~forced；
+    gray = admissible & ~strict；rejected = valid & ~admissible。
+    物理假设：通过峰值、能量且未触发硬形态回退的 gray 中心可支撑已有
+    TV 时间插值；本函数不重新求解子波、不更改相位或反射系数。
+    """
+    # 保持一维时间采样对应关系，不把错误的二维输入展平为合法掩码。
+    valid_mask = np.asarray(valid_mask, dtype=bool)  # shape: (N_time,)
+    strict_reliable_mask = np.asarray(strict_reliable_mask, dtype=bool)
+    peak_metric_ms = np.asarray(peak_metric_ms, dtype=float)
+    wavelet_energy_norm = np.asarray(wavelet_energy_norm, dtype=float)
+    pointwise_fallback_request_mask = np.asarray(pointwise_fallback_request_mask, dtype=bool)
+    provenance_forced_prior_mask = np.asarray(provenance_forced_prior_mask, dtype=bool)
+    if valid_mask.ndim != 1 or valid_mask.size == 0:
+        raise ValueError("valid_mask must be a non-empty 1D mask.")
+    for name, array in (
+        ("strict_reliable_mask", strict_reliable_mask),
+        ("peak_metric_ms", peak_metric_ms),
+        ("wavelet_energy_norm", wavelet_energy_norm),
+        ("pointwise_fallback_request_mask", pointwise_fallback_request_mask),
+        ("provenance_forced_prior_mask", provenance_forced_prior_mask),
+    ):
+        if array.shape != valid_mask.shape:
+            raise ValueError(f"{name} shape must match valid_mask {valid_mask.shape}.")
+    if not np.isfinite(peak_limit_ms) or peak_limit_ms < 0.0:
+        raise ValueError("peak_limit_ms must be finite and non-negative.")
+    if not np.isfinite(energy_min) or energy_min < 0.0:
+        raise ValueError("energy_min must be finite and non-negative.")
+
+    peak_ok_mask = np.isfinite(peak_metric_ms) & (np.abs(peak_metric_ms) <= peak_limit_ms)
+    energy_ok_mask = np.isfinite(wavelet_energy_norm) & (wavelet_energy_norm >= energy_min)
+    admissible_direct_mask = (
+        valid_mask & peak_ok_mask & energy_ok_mask
+        & (~pointwise_fallback_request_mask) & (~provenance_forced_prior_mask)
+    )
+    gray_zone_direct_mask = admissible_direct_mask & (~strict_reliable_mask)
+    rejected_direct_mask = valid_mask & (~admissible_direct_mask)
+    if np.any(strict_reliable_mask & (~admissible_direct_mask)):
+        raise AssertionError("strict reliable 必须是 admissible direct 的子集。")
+    if np.any(gray_zone_direct_mask & strict_reliable_mask):
+        raise AssertionError("gray-zone 与 strict reliable 必须互斥。")
+    return admissible_direct_mask, gray_zone_direct_mask, rejected_direct_mask
+
+
 def apply_local_wavelet_fallback(
     *,
     W_final: np.ndarray,
@@ -1006,9 +1069,15 @@ def build_preacceptance_hybrid_candidate(
     local_fallback_cfg: dict,
 ) -> dict:
     """
-    在 global acceptance 之前修复 raw TV candidate。
+    在 global acceptance 之前构造 strict + gray 支撑的 hybrid candidate。
 
-    不增加新的 YAML 参数。
+    输入：tv.W_best 为 (N_time, N_wavelet)，tv.valid_mask 及来源掩码为
+    (N_time,)；w_prior 为 (N_wavelet,)，子波振幅单位沿用反演结果。
+    dt 单位 s，配置中的峰值/间隙时间单位 ms，能量和形态阈值无量纲。
+    输出：字典中的 W_hybrid 保持 (N_time, N_wavelet)，alpha 和分类掩码
+    均为 (N_time,)；center ratio 以有效直接反演中心数为分母。
+    数学作用：W_hybrid = alpha * W_tv + (1-alpha) * w_prior；只调整
+    既有 TV 插值的可用区域，不重新求解子波、不增加 YAML 参数。
     """
     W_tv_candidate = np.asarray(
         tv.W_best,
@@ -1174,6 +1243,50 @@ def build_preacceptance_hybrid_candidate(
         ),
     )
 
+    # 先解析来源，再划分直接反演中心；所有掩码 shape: (N_time,)。
+    valid_direct_mask = np.asarray(tv.valid_mask, dtype=bool)
+    if valid_direct_mask.shape != (n_time,):
+        raise ValueError("tv.valid_mask must have shape (N_time,).")
+
+    extrapolated_mask = _diag_bool_mask(
+        tv.diag,
+        "candidate_extrapolated_mask",
+        n_time,
+    )
+
+    prior_fill_mask = _diag_bool_mask(
+        tv.diag,
+        "candidate_prior_fill_mask",
+        n_time,
+    )
+
+    unavailable_mask = _diag_bool_mask(
+        tv.diag,
+        "candidate_unavailable_mask",
+        n_time,
+    )
+
+    provenance_forced_prior_mask = (
+        extrapolated_mask
+        | prior_fill_mask
+        | unavailable_mask
+    )
+
+    (
+        admissible_direct_mask,
+        gray_zone_direct_mask,
+        rejected_direct_mask,
+    ) = build_admissible_direct_masks(
+        valid_mask=valid_direct_mask,
+        strict_reliable_mask=direct_reliable_mask,
+        peak_metric_ms=candidate_qc["peak_metric_ms"],
+        wavelet_energy_norm=candidate_wavelet_energy_norm,
+        pointwise_fallback_request_mask=pointwise_fallback_request_mask,
+        provenance_forced_prior_mask=provenance_forced_prior_mask,
+        peak_limit_ms=local_fallback_cfg["peak_limit_ms"],
+        energy_min=local_fallback_cfg["energy_min"],
+    )
+
     # ----------------------------------
     # 3. 自动定义 short gap
     # ----------------------------------
@@ -1210,7 +1323,7 @@ def build_preacceptance_hybrid_candidate(
     )
 
     # ----------------------------------
-    # 4. B 区：短 gap
+    # 4. strict + gray 作为锚点，保留短 gap 内已有的 TV 插值
     # ----------------------------------
 
     (
@@ -1218,7 +1331,7 @@ def build_preacceptance_hybrid_candidate(
         short_gap_mask,
     ) = (
         bridge_short_gaps_between_reliable_centers(
-            direct_reliable_mask,
+            admissible_direct_mask,
             dt=dt,
             short_gap_limit_ms=(
                 short_gap_limit_ms
@@ -1226,39 +1339,12 @@ def build_preacceptance_hybrid_candidate(
         )
     )
 
-    # ----------------------------------
-    # 5. 来源谱系
-    # ----------------------------------
-
-    extrapolated_mask = _diag_bool_mask(
-        tv.diag,
-        "candidate_extrapolated_mask",
-        n_time,
-    )
-
-    prior_fill_mask = _diag_bool_mask(
-        tv.diag,
-        "candidate_prior_fill_mask",
-        n_time,
-    )
-
-    unavailable_mask = _diag_bool_mask(
-        tv.diag,
-        "candidate_unavailable_mask",
-        n_time,
-    )
-
-    provenance_forced_prior_mask = (
-        extrapolated_mask
-        | prior_fill_mask
-        | unavailable_mask
-    )
-
-    # endpoint extrapolation 永远不能
-    # 被 short-gap bridge 救回来
+    # 5. 来源硬规则：外推、先验填充和 rejected direct 都不能被 bridge 救回。
+    # 特别是低能量 direct 可能位于两个 admissible 锚点之间，必须显式排除。
     tv_support_mask = (
         tv_support_mask
         & (~provenance_forced_prior_mask)
+        & (~rejected_direct_mask)
     )
 
     # ----------------------------------
@@ -1277,6 +1363,13 @@ def build_preacceptance_hybrid_candidate(
         short_gap_mask
         & (~proposed_fallback_mask)
     )
+
+    if np.any(tv_support_mask & provenance_forced_prior_mask):
+        raise AssertionError("forced-prior provenance 不能出现在 TV support 中。")
+    if np.any(short_gap_mask & proposed_fallback_mask):
+        raise AssertionError("short-gap 与 fallback mask 必须互斥。")
+    if np.any(rejected_direct_mask & (~proposed_fallback_mask)):
+        raise AssertionError("rejected direct 必须回退到 prior。")
 
     # ----------------------------------
     # 7. 混合
@@ -1365,7 +1458,39 @@ def build_preacceptance_hybrid_candidate(
         & (~pure_tv_mask)
     )
 
+    # center ratio 分母为有效直接反演中心数；sample ratio 分母为全部时间采样数。
+    valid_direct_count = int(np.count_nonzero(valid_direct_mask))
+    strict_reliable_direct_count = int(np.count_nonzero(direct_reliable_mask))
+    admissible_direct_count = int(np.count_nonzero(admissible_direct_mask))
+    gray_zone_direct_count = int(np.count_nonzero(gray_zone_direct_mask))
+    rejected_direct_count = int(np.count_nonzero(rejected_direct_mask))
+    denominator = max(valid_direct_count, 1)
+    strict_reliable_center_ratio = strict_reliable_direct_count / denominator
+    admissible_direct_center_ratio = admissible_direct_count / denominator
+    gray_zone_center_ratio = gray_zone_direct_count / denominator
+    rejected_direct_center_ratio = rejected_direct_count / denominator
+    if enabled and not np.allclose(alpha[proposed_fallback_mask], 0.0, rtol=0.0, atol=1e-15):
+        raise AssertionError("hard fallback samples must have alpha=0.")
+
     return {
+        "valid_direct_mask": valid_direct_mask,
+        "strict_reliable_direct_mask": direct_reliable_mask,
+        "admissible_direct_mask": admissible_direct_mask,
+        "gray_zone_direct_mask": gray_zone_direct_mask,
+        "rejected_direct_mask": rejected_direct_mask,
+        "valid_direct_count": valid_direct_count,
+        "strict_reliable_direct_count": strict_reliable_direct_count,
+        "admissible_direct_count": admissible_direct_count,
+        "gray_zone_direct_count": gray_zone_direct_count,
+        "rejected_direct_count": rejected_direct_count,
+        "strict_reliable_center_ratio": strict_reliable_center_ratio,
+        "admissible_direct_center_ratio": admissible_direct_center_ratio,
+        "gray_zone_center_ratio": gray_zone_center_ratio,
+        "rejected_direct_center_ratio": rejected_direct_center_ratio,
+        "strict_reliable_sample_ratio": float(np.mean(direct_reliable_mask)),
+        "admissible_direct_sample_ratio": float(np.mean(admissible_direct_mask)),
+        "gray_zone_sample_ratio": float(np.mean(gray_zone_direct_mask)),
+        "rejected_direct_sample_ratio": float(np.mean(rejected_direct_mask)),
         "W_raw": W_tv_candidate,
 
         "W_hybrid": W_hybrid,
@@ -1526,7 +1651,7 @@ def _save_and_plot_results(
         metrics=metrics,
         tv_diag=tv.diag,
         dtw_history=dtw.history,
-        acceptance_reasons=tv.acceptance_reasons,
+        acceptance_reasons=list(metrics.get("acceptance_reasons", [])),
         q_reason=q_result.reason,
         extra_arrays={
             "v_eff": data.v_eff,
@@ -2092,9 +2217,27 @@ def _main_impl(config_path: str):
     )
     print(
         "[Pre-acceptance hybrid] "
-        f"direct reliable ratio = "
-        f"{np.mean(hybrid['direct_reliable_mask']):.3f}"
+        f"strict reliable sample ratio = "
+        f"{hybrid['strict_reliable_sample_ratio']:.3f}"
     )
+    print(f"[Pre-acceptance hybrid] valid direct centers = {hybrid['valid_direct_count']}")
+    print(
+        "[Pre-acceptance hybrid] strict reliable centers = "
+        f"{hybrid['strict_reliable_direct_count']} ({hybrid['strict_reliable_center_ratio']:.3f})"
+    )
+    print(
+        "[Pre-acceptance hybrid] gray admissible centers = "
+        f"{hybrid['gray_zone_direct_count']} ({hybrid['gray_zone_center_ratio']:.3f})"
+    )
+    print(
+        "[Pre-acceptance hybrid] total admissible centers = "
+        f"{hybrid['admissible_direct_count']} ({hybrid['admissible_direct_center_ratio']:.3f})"
+    )
+    print(
+        "[Pre-acceptance hybrid] rejected direct centers = "
+        f"{hybrid['rejected_direct_count']} ({hybrid['rejected_direct_center_ratio']:.3f})"
+    )
+    print(f"[Pre-acceptance hybrid] TV support sample ratio = {np.mean(hybrid['tv_support_mask']):.3f}")
     print(
         "[Pre-acceptance hybrid] "
         f"short gap ratio = "
@@ -2534,30 +2677,14 @@ def _main_impl(config_path: str):
     CC_final = float(final_similarity_details["cc_direct"])
     CC_final_direct = CC_final
 
-    # 仅诊断 fallback 后的最终模型是否仍满足原 TV 门槛，不改变 W_pass 或模型选择。
-    post_local_fallback_acceptance = None
-    if local_fallback_enabled:
-        post_local_fallback_acceptance = evaluate_tv_wavelet_candidate(
-            alignment=alignment,
-            # 保持现有 TV 验收的数据口径：这里传综合相似度，不改动历史阈值语义。
-            cc_tv_direct=CC_final,
-            cc_after_dtw=dtw.cc_after,
-            cc_stationary=after_prior.cc,
-            env_tv=final_similarity_details["env_cc"],
-            env_stationary=after_prior.env_cc,
-            best_lag_ms=final_similarity_details["best_lag_ms"],
-            peak_metric_p10=final_peak_summary["p10"],
-            peak_metric_med=final_peak_summary["median"],
-            peak_metric_p90=final_peak_summary["p90"],
-            peak_abs_p90=final_peak_summary["abs_p90"],
-            causal_peak_allowed_ms=tuple(cfg.wavelet.causal_peak_allowed_ms),
-            config=_build_tv_acceptance_config(cfg),
-        )
-        print(
-            "[Local fallback] post-QC pass = "
-            f"{post_local_fallback_acceptance.passed}; "
-            f"reasons = {post_local_fallback_acceptance.reasons}"
-        )
+    # 正式门槛已经在模型选择前计算；这里复用同一个 hybrid 验收结果。
+    hybrid_similarity = hybrid_eval["similarity"]
+    hybrid_peak_summary = hybrid_eval["peak_summary"]
+    hybrid_acceptance = hybrid_eval["acceptance"]
+    print(
+        "[Pre-acceptance hybrid] decisive acceptance pass = "
+        f"{hybrid_acceptance.passed}; reasons = {hybrid_acceptance.reasons}"
+    )
 
     # 35 Hz Ricker 只作为 QC 基准；同一子波分别检查初始和 DTW 后反射系数。
     ricker_qc_frequency_hz = 35.0
@@ -2626,7 +2753,7 @@ def _main_impl(config_path: str):
         CC_after_DTW=dtw.cc_after,
         CC_prior_after_DTW=after_prior.cc,
         CC_tv_direct=float(
-            hybrid_eval["similarity"]["cc_direct"]
+            hybrid_similarity["cc_direct"]
         ),
         W_pass=hybrid_W_pass,
         q_pass=q_pass,
@@ -2634,14 +2761,14 @@ def _main_impl(config_path: str):
         Q_global=q_result.Q_global,
         CC_final=CC_final,
         final_model_type=final_model_type,
-        best_lag_ms=tv.best_lag_ms,
-        peak_metric_p10=tv.peak_metric_p10,
-        peak_metric_med=tv.peak_metric_med,
-        peak_metric_p90=tv.peak_metric_p90,
-        peak_abs_p90=tv.peak_abs_p90,
+        best_lag_ms=float(hybrid_similarity["best_lag_ms"]),
+        peak_metric_p10=float(hybrid_peak_summary["p10"]),
+        peak_metric_med=float(hybrid_peak_summary["median"]),
+        peak_metric_p90=float(hybrid_peak_summary["p90"]),
+        peak_abs_p90=float(hybrid_peak_summary["abs_p90"]),
         valid_ratio=tv.valid_ratio,
         use_negative_W=tv.use_negative,
-        acceptance_reasons=tv.acceptance_reasons,
+        acceptance_reasons=list(hybrid_acceptance.reasons),
         q_reason=q_result.reason,
     )
     valid_res_med = tv.residual_median[tv.valid_mask]
@@ -2651,6 +2778,23 @@ def _main_impl(config_path: str):
 
     metrics.update(
         {
+            "raw_tv_peak_metric_p10": float(tv.peak_metric_p10),
+            "raw_tv_peak_metric_med": float(tv.peak_metric_med),
+            "raw_tv_peak_metric_p90": float(tv.peak_metric_p90),
+            "hybrid_direct_reliable_ratio_scope": "strict_reliable_samples_over_all_time_samples",
+            "hybrid_valid_direct_count": hybrid["valid_direct_count"],
+            "hybrid_strict_reliable_direct_count": hybrid["strict_reliable_direct_count"],
+            "hybrid_admissible_direct_count": hybrid["admissible_direct_count"],
+            "hybrid_gray_zone_direct_count": hybrid["gray_zone_direct_count"],
+            "hybrid_rejected_direct_count": hybrid["rejected_direct_count"],
+            "hybrid_strict_reliable_center_ratio": hybrid["strict_reliable_center_ratio"],
+            "hybrid_admissible_direct_center_ratio": hybrid["admissible_direct_center_ratio"],
+            "hybrid_gray_zone_center_ratio": hybrid["gray_zone_center_ratio"],
+            "hybrid_rejected_direct_center_ratio": hybrid["rejected_direct_center_ratio"],
+            "hybrid_strict_reliable_sample_ratio": hybrid["strict_reliable_sample_ratio"],
+            "hybrid_admissible_direct_sample_ratio": hybrid["admissible_direct_sample_ratio"],
+            "hybrid_gray_zone_sample_ratio": hybrid["gray_zone_sample_ratio"],
+            "hybrid_rejected_direct_sample_ratio": hybrid["rejected_direct_sample_ratio"],
             "raw_tv_W_pass": bool(tv.W_pass),
             "raw_tv_CC_direct": float(tv.cc_direct),
             "raw_tv_best_lag_ms": float(tv.best_lag_ms),
@@ -2969,22 +3113,22 @@ def _main_impl(config_path: str):
             "final_centroid_frequency_hz_median_after_local_fallback": float(
                 np.median(final_qc["centroid_frequency_hz"])
             ),
-            "W_pass_scope": "tv_candidate_before_local_fallback",
-            "post_local_fallback_acceptance_evaluated": bool(
-                post_local_fallback_acceptance is not None
-            ),
-            "post_local_fallback_acceptance_passed": (
-                bool(post_local_fallback_acceptance.passed)
-                if post_local_fallback_acceptance is not None
-                else None
-            ),
-            "post_local_fallback_acceptance_reasons": (
-                list(post_local_fallback_acceptance.reasons)
-                if post_local_fallback_acceptance is not None
-                else []
-            ),
+            "W_pass_scope": "preacceptance_hybrid_candidate",
+            "CC_tv_direct_scope": "preacceptance_hybrid_candidate",
+            "valid_ratio_scope": "raw_tv_direct_inversion_centers",
+            "acceptance_reasons_scope": "preacceptance_hybrid_candidate",
+            "peak_metric_scope": "preacceptance_hybrid_candidate",
+            "best_lag_scope": "preacceptance_hybrid_candidate",
+            "hybrid_acceptance_evaluated": True,
+            "hybrid_acceptance_passed": bool(hybrid_acceptance.passed),
+            "hybrid_acceptance_reasons": list(hybrid_acceptance.reasons),
+            "hybrid_acceptance_scope": "decisive_preacceptance_hybrid_gate",
+            # 兼容旧读取程序：这些字段是正式 hybrid gate 的别名。
+            "post_local_fallback_acceptance_evaluated": True,
+            "post_local_fallback_acceptance_passed": bool(hybrid_acceptance.passed),
+            "post_local_fallback_acceptance_reasons": list(hybrid_acceptance.reasons),
             "post_local_fallback_acceptance_scope": (
-                "diagnostic_only; keeps legacy composite-score gate semantics"
+                "legacy_alias_of_decisive_preacceptance_hybrid_gate"
             ),
             # 旧 Ricker 键继续对应初始反射系数，避免改变历史字段含义。
             "CC_final_ricker_similarity": float(CC_ricker_qc_initial),
@@ -3066,6 +3210,12 @@ def _main_impl(config_path: str):
             "candidate_unavailable_mask",
             np.array([], dtype=bool),
         ),
+        "tv_strict_reliable_direct_mask": hybrid["direct_reliable_mask"],
+        "tv_admissible_direct_mask": hybrid["admissible_direct_mask"],
+        "tv_gray_zone_direct_mask": hybrid["gray_zone_direct_mask"],
+        "tv_rejected_direct_mask": hybrid["rejected_direct_mask"],
+        "tv_hybrid_proposed_fallback_mask": hybrid["proposed_fallback_mask"],
+        "tv_hybrid_applied_fallback_mask": hybrid["applied_fallback_mask"],
         "tv_hybrid_W": hybrid["W_hybrid"],
         "tv_hybrid_alpha": hybrid["alpha"],
         "tv_hybrid_support_mask": hybrid["tv_support_mask"],

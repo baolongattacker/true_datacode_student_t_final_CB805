@@ -335,7 +335,26 @@ def _print_selected_time_qc(
     wavelet_energy_norm=None,
     side_lobe_ratio=None,
     edge_energy_ratio=None,
+    candidate_diagnostics=None,
 ):
+    # candidate/hybrid 掩码仅用于日志，shape 均为 (N_time,)，无量纲。
+    if candidate_diagnostics is None:
+        candidate_diagnostics = {}
+    candidate_masks = {}
+    for label, key in (
+        ("strict_reliable", "tv_strict_reliable_direct_mask"),
+        ("admissible_direct", "tv_admissible_direct_mask"),
+        ("gray_zone", "tv_gray_zone_direct_mask"),
+        ("rejected_direct", "tv_rejected_direct_mask"),
+        ("hybrid_support", "tv_hybrid_support_mask"),
+        ("hybrid_fallback_requested", "tv_hybrid_applied_fallback_mask"),
+    ):
+        candidate_masks[label] = _optional_bool_vector(
+            candidate_diagnostics.get(key), name=key, n_time=len(t_work),
+        )
+    hybrid_alpha = _optional_float_vector(
+        candidate_diagnostics.get("tv_hybrid_alpha"), name="tv_hybrid_alpha", n_time=len(t_work),
+    )
     print(f"[Selected-time QC] {figure_name}")
     for target_t, idx, idx_raw in zip(target_times_s, selected_indices, raw_indices):
         direct_inverted_val = int(valid_mask[idx]) if valid_mask is not None else -1
@@ -348,15 +367,22 @@ def _print_selected_time_qc(
         )
         side_val = float(side_lobe_ratio[idx]) if side_lobe_ratio is not None else np.nan
         edge_val = float(edge_energy_ratio[idx]) if edge_energy_ratio is not None else np.nan
+        hybrid_alpha_val = float(hybrid_alpha[idx]) if hybrid_alpha is not None else np.nan
+        candidate_status = ""
+        for label, mask in candidate_masks.items():
+            status_value = int(mask[idx]) if mask is not None else -1
+            candidate_status += f"{label}={status_value} "
         print(
             "  "
             f"target={float(target_t):.3f}s "
             f"selected={float(t_work[idx]):.3f}s "
             f"idx={idx} raw_idx={idx_raw} "
-            f"candidate_direct_inverted={direct_inverted_val} "
-            f"reliable={reliable_val} "
+            f"direct_inverted={direct_inverted_val} "
+            f"{candidate_status}"
+            f"final_shape_reliable={reliable_val} "
             f"fallback={fallback_val} "
-            f"alpha={alpha_val:.3f} "
+            f"hybrid_alpha={hybrid_alpha_val:.3f} "
+            f"final_alpha={alpha_val:.3f} "
             f"peak_metric_ms={peak_val:.3f} "
             f"wavelet_energy_norm={energy_val:.3f} "
             f"side_lobe_ratio={side_val:.3f} "
@@ -387,6 +413,7 @@ def plot_wavelet_selected_time_comparison(
     side_lobe_ratio=None,
     edge_energy_ratio=None,
     print_selected_qc: bool = True,
+    candidate_diagnostics=None,
 ):
     """
     绘制“指定时间点子波形态对比图”。
@@ -558,6 +585,7 @@ def plot_wavelet_selected_time_comparison(
             wavelet_energy_norm=wavelet_energy_norm,
             side_lobe_ratio=side_lobe_ratio,
             edge_energy_ratio=edge_energy_ratio,
+            candidate_diagnostics=candidate_diagnostics,
         )
     return out_path
 
@@ -585,6 +613,7 @@ def plot_time_varying_wavelet_wiggle_panel(
     side_lobe_ratio=None,
     edge_energy_ratio=None,
     print_selected_qc: bool = True,
+    candidate_diagnostics=None,
 ):
     """
     绘制“时变子波沿时间轴展开的 wiggle-style 对比图”。
@@ -800,6 +829,7 @@ def plot_time_varying_wavelet_wiggle_panel(
             wavelet_energy_norm=wavelet_energy_norm,
             side_lobe_ratio=side_lobe_ratio,
             edge_energy_ratio=edge_energy_ratio,
+            candidate_diagnostics=candidate_diagnostics,
         )
     return out_path
 
