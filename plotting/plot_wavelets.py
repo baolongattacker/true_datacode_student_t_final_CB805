@@ -35,8 +35,8 @@ def plot_wavelet_matrix(
     dt,
     alignment: str,
     result_dir,
-    filename: str = "fig02_W_final_matrix.png",
-    title: str = "Time-varying wavelet matrix",
+    filename: str = "fig04_W_final_matrix.png",
+    title: str = "Final after fallback\nFinal wavelet matrix",
 ):
     result_dir = ensure_dir(result_dir)
 
@@ -81,8 +81,8 @@ def plot_wavelet_slices(
     dt,
     alignment: str,
     result_dir,
-    filename: str = "fig03_wavelet_slices.png",
-    title: str = "Representative wavelets",
+    filename: str = "wavelet_slices.png",
+    title: str = "Final after fallback\nFinal representative wavelets",
     time_fractions=(0.1, 0.3, 0.5, 0.7, 0.9),
 ):
     result_dir = ensure_dir(result_dir)
@@ -127,7 +127,8 @@ def plot_peak_metric(
     peak_metric_ms,
     alignment: str,
     result_dir,
-    filename: str = "fig04_peak_metric.png",
+    filename: str = "fig06_peak_metric.png",
+    title: str = "Final after fallback\nFinal peak metric",
     center_limit_ms: float = 15.0,
     causal_peak_allowed_ms=(0.0, 40.0),
 ):
@@ -151,7 +152,7 @@ def plot_peak_metric(
         ax.set_ylabel("Peak time after reflection (ms)")
 
     ax.set_xlabel("TWT (s)")
-    ax.set_title("Wavelet peak metric")
+    ax.set_title(title)
     fig.tight_layout()
 
     out_path = result_dir / filename
@@ -305,7 +306,7 @@ def _selected_status_string(
 ) -> str:
     tags = []
     if valid_mask is not None and not bool(valid_mask[idx]):
-        tags.append("not-direct-inverted")
+        tags.append("candidate not-direct-inverted")
     if reliable_mask is not None and bool(reliable_mask[idx]):
         tags.append("reliable")
     if fallback_mask is not None and bool(fallback_mask[idx]):
@@ -352,7 +353,7 @@ def _print_selected_time_qc(
             f"target={float(target_t):.3f}s "
             f"selected={float(t_work[idx]):.3f}s "
             f"idx={idx} raw_idx={idx_raw} "
-            f"direct_inverted={direct_inverted_val} "
+            f"candidate_direct_inverted={direct_inverted_val} "
             f"reliable={reliable_val} "
             f"fallback={fallback_val} "
             f"alpha={alpha_val:.3f} "
@@ -372,8 +373,8 @@ def plot_wavelet_selected_time_comparison(
     result_dir,
     W_reference=None,
     target_times_s=None,
-    filename: str = "fig10_selected_time_wavelet_shape_comparison.png",
-    title: str = "Selected-Time Wavelet Shape Comparison",
+    filename: str = "fig12_selected_time_wavelet_shape_comparison.png",
+    title: str = "Final after fallback\nSelected-time wavelet shape comparison",
     est_label: str = "Final",
     reference_label: str = "TVWI",
     ncols: int = 2,
@@ -570,8 +571,8 @@ def plot_time_varying_wavelet_wiggle_panel(
     result_dir,
     W_reference=None,
     target_times_s=None,
-    filename: str = "fig11_time_varying_wavelet_wiggle_panel.png",
-    title: str = "Time-Varying Wavelet",
+    filename: str = "fig13_time_varying_wavelet_wiggle_panel.png",
+    title: str = "Final after fallback\nTime-varying wavelet panel",
     est_label: str = "Final",
     reference_label: str = "TVWI",
     amplitude_scale: float = 0.5,

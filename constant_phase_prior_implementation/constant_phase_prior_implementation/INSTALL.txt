@@ -1,0 +1,40 @@
+Constant-phase stationary prior implementation
+
+Install:
+1. Copy utils/constant_phase_wavelet.py to your repository utils/ directory.
+2. Copy tests/test_constant_phase_wavelet.py to tests/.
+3. From repository root apply constant_phase_prior.patch:
+       git apply constant_phase_prior.patch
+   Your local repository already contains custom stationary mu_edge work, so
+   if one hunk conflicts, apply that hunk manually rather than discarding your
+   local modifications.
+4. In the existing YAML stationary: block add exactly:
+       prior_method: constant_phase
+5. Run:
+       pytest -q tests/test_constant_phase_wavelet.py
+6. Run the normal experiment.
+
+Behavior:
+- DTW remains unchanged.
+- After DTW, observed seismic supplies a statistical amplitude spectrum.
+- A single constant phase is searched using zero-lag direct CC.
+- Existing peak-position QC is enforced.
+- Candidate must have direct CC >= Ricker baseline.
+- Otherwise the existing center Ricker fallback is used.
+- Accepted constant-phase prior uses TV mu_prior_strict.
+- No new mu regularization parameter is introduced.
+
+Backward compatibility:
+Set:
+    prior_method: strict_stationary
+or omit prior_method entirely to retain the historical free-form stationary
+LS + Ricker fallback path.
+
+Outputs added to metrics/result_bundle include:
+- constant_phase_deg
+- constant_phase_spectral_peak_hz
+- constant_phase_band_low_hz / band_high_hz
+- constant_phase_candidate_cc
+- constant_phase_ricker_cc
+- constant_phase_phase_grid_deg / phase_cc
+- constant_phase_spectrum_hz / spectrum_amplitude

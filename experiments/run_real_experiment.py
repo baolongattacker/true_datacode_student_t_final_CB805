@@ -30,11 +30,11 @@ from core.wavelet_qc import (
 from io_utils.load_initial_npz import load_run_data
 from io_utils.save_results import copy_config_file, build_metrics_dict, save_result_bundle
 from plotting.plot_qc import plot_all
-from plotting.plot_wavelets import plot_single_wavelet
 from stages.stage_dtw import run_dtw_stage, DtwPhaseSpec
 from stages.stage_q_constraint import try_q_constraint_stage
 from stages.stage_tv_wavelet import run_tv_wavelet_stage
 from stages.stage_wavelet_prior import (
+    build_constant_phase_prior_with_fallback,
     build_ricker_prior,
     build_stationary_prior_with_fallback,
     make_center_ricker_wavelet,
@@ -56,6 +56,7 @@ def choose_final_model(
     s_syn_tv_direct,
     w_prior,
     s_syn_prior,
+    prior_source: str | None = None,
 ):
     """
     选择最终用于保存和绘图的模型。
@@ -82,8 +83,9 @@ def choose_final_model(
             "q_pass": False,
         }
 
+    fallback_model_type = "prior_after_DTW_global_fallback"
     return {
-        "model_type": f"stationary_{alignment}_prior_after_DTW_fallback",
+        "model_type": fallback_model_type,
         # 将一维子波 w_prior 扩展为二维矩阵，
         # 行数与 s_syn_prior 的长度相同，列数与 w_prior 的长度相同
         "W_final": np.tile(w_prior[None, :], (len(s_syn_prior), 1)),
@@ -628,6 +630,120 @@ def apply_local_wavelet_fallback(
     return W_final_local, alpha
 
 
+def _diag_bool_mask(
+    diag: dict,
+    key: str,
+    n_time: int,
+    *,
+    default: bool = False,
+) -> np.ndarray:
+    value = diag.get(key, None)
+
+    if value is None:
+        return np.full(
+            n_time,
+            default,
+            dtype=bool,
+        )
+
+    mask = np.asarray(
+        value,
+        dtype=bool,
+    ).ravel()
+
+    if mask.size != n_time:
+        raise ValueError(
+            f"tv.diag[{key!r}] length mismatch: "
+            f"{mask.size} != {n_time}."
+        )
+
+    return mask
+
+
+def bridge_short_gaps_between_reliable_centers(
+    reliable_center_mask: np.ndarray,
+    *,
+    dt: float,
+    short_gap_limit_ms: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    根据直接可靠中心构造 TV 可保留区域。
+
+    direct reliable:
+        始终保留。
+
+    两个 reliable center 之间：
+        若距离 <= short_gap_limit_ms，
+        允许保留 TVWI 已经生成的插值结果。
+
+    两端、长 gap：
+        本函数不填充，后续会回 prior。
+    """
+    reliable_center_mask = np.asarray(
+        reliable_center_mask,
+        dtype=bool,
+    ).ravel()
+
+    if reliable_center_mask.size == 0:
+        raise ValueError(
+            "reliable_center_mask must be non-empty."
+        )
+
+    if not np.isfinite(dt) or dt <= 0.0:
+        raise ValueError(
+            "dt must be finite and positive."
+        )
+
+    if (
+        not np.isfinite(short_gap_limit_ms)
+        or short_gap_limit_ms < 0.0
+    ):
+        raise ValueError(
+            "short_gap_limit_ms must be finite "
+            "and non-negative."
+        )
+
+    tv_support_mask = (
+        reliable_center_mask.copy()
+    )
+
+    reliable_indices = np.flatnonzero(
+        reliable_center_mask
+    )
+
+    dt_ms = float(dt) * 1000.0
+
+    if reliable_indices.size >= 2:
+        for left, right in zip(
+            reliable_indices[:-1],
+            reliable_indices[1:],
+        ):
+            left = int(left)
+            right = int(right)
+
+            span_ms = (
+                right - left
+            ) * dt_ms
+
+            if (
+                span_ms
+                <= short_gap_limit_ms + 1e-12
+            ):
+                tv_support_mask[
+                    left:right + 1
+                ] = True
+
+    short_gap_mask = (
+        tv_support_mask
+        & (~reliable_center_mask)
+    )
+
+    return (
+        tv_support_mask,
+        short_gap_mask,
+    )
+
+
 def _summarize_peak_metric(
     peak_metric_ms: np.ndarray,
     alignment: str,
@@ -652,6 +768,681 @@ def _summarize_peak_metric(
         "median": float(np.median(peak_metric_ms)),
         "p90": float(np.percentile(peak_metric_ms, 90)),
         "abs_p90": peak_abs_p90,
+    }
+
+
+def evaluate_wavelet_matrix_candidate(
+    *,
+    W: np.ndarray,
+    r_time: np.ndarray,
+    obs_work: np.ndarray,
+    dt: float,
+    alignment: str,
+    cc_after_dtw: float,
+    cc_prior: float,
+    env_prior: float,
+    cfg,
+) -> dict:
+    """
+    对经过局部修复的完整 W 重新进行
+    forward + global numerical/physical acceptance。
+    """
+    W = np.asarray(
+        W,
+        dtype=float,
+    )
+
+    if W.ndim != 2:
+        raise ValueError(
+            "W must be a 2D wavelet matrix."
+        )
+
+    if not np.all(np.isfinite(W)):
+        raise ValueError(
+            "W must contain only finite values."
+        )
+
+    s_syn = nonstationary_convolution(
+        r_time=r_time,
+        W=W,
+        alignment=alignment,
+    )
+
+    s_syn = match_rms(
+        s_syn,
+        obs_work,
+    )
+
+    similarity_score, similarity = (
+        tie_similarity_score(
+            s_obs=obs_work,
+            s_syn=s_syn,
+            dt=dt,
+            max_lag_ms=float(
+                cfg.acceptance.max_lag_ms
+            ),
+        )
+    )
+
+    qc = compute_wavelet_qc_attributes(
+        W,
+        dt=dt,
+        wavelet_alignment=alignment,
+    )
+
+    peak_summary = _summarize_peak_metric(
+        qc["peak_metric_ms"],
+        alignment,
+    )
+
+    acceptance_cfg = (
+        _build_tv_acceptance_config(cfg)
+    )
+
+    peak_metric_ms = np.asarray(
+        qc["peak_metric_ms"],
+        dtype=float,
+    )
+
+    finite_peak_mask = np.isfinite(
+        peak_metric_ms
+    )
+
+    if not np.any(finite_peak_mask):
+        peak_violation_ratio = 1.0
+
+    elif alignment == "center":
+        peak_limit_ms = (
+            float(
+                acceptance_cfg
+                .center_peak_abs_p90_ms
+            )
+            + float(
+                acceptance_cfg.tolerance_ms
+            )
+        )
+
+        peak_violation_mask = (
+            np.abs(peak_metric_ms)
+            > peak_limit_ms
+        )
+
+        peak_violation_ratio = float(
+            np.mean(
+                peak_violation_mask[
+                    finite_peak_mask
+                ]
+            )
+        )
+
+    elif alignment == "causal":
+        lo, hi = tuple(
+            cfg.wavelet
+            .causal_peak_allowed_ms
+        )
+
+        margin = (
+            float(
+                acceptance_cfg
+                .causal_peak_extra_margin_ms
+            )
+            + float(
+                acceptance_cfg.tolerance_ms
+            )
+        )
+
+        peak_violation_mask = (
+            (
+                peak_metric_ms
+                < float(lo) - margin
+            )
+            |
+            (
+                peak_metric_ms
+                > float(hi) + margin
+            )
+        )
+
+        peak_violation_ratio = float(
+            np.mean(
+                peak_violation_mask[
+                    finite_peak_mask
+                ]
+            )
+        )
+
+    else:
+        raise ValueError(
+            "alignment must be "
+            "'center' or 'causal'."
+        )
+
+    acceptance = (
+        evaluate_tv_wavelet_candidate(
+            alignment=alignment,
+
+            cc_tv_direct=float(
+                similarity["cc_direct"]
+            ),
+
+            cc_after_dtw=float(
+                cc_after_dtw
+            ),
+
+            cc_stationary=float(
+                cc_prior
+            ),
+
+            env_tv=float(
+                similarity["env_cc"]
+            ),
+
+            env_stationary=float(
+                env_prior
+            ),
+
+            best_lag_ms=float(
+                similarity["best_lag_ms"]
+            ),
+
+            peak_metric_p10=float(
+                peak_summary["p10"]
+            ),
+
+            peak_metric_med=float(
+                peak_summary["median"]
+            ),
+
+            peak_metric_p90=float(
+                peak_summary["p90"]
+            ),
+
+            peak_abs_p90=float(
+                peak_summary["abs_p90"]
+            ),
+
+            causal_peak_allowed_ms=tuple(
+                cfg.wavelet
+                .causal_peak_allowed_ms
+            ),
+
+            final_peak_violation_ratio=float(
+                peak_violation_ratio
+            ),
+
+            config=acceptance_cfg,
+        )
+    )
+
+    return {
+        "W": W,
+
+        "s_syn": s_syn,
+
+        "similarity_score": float(
+            similarity_score
+        ),
+
+        "similarity": similarity,
+
+        "qc": qc,
+
+        "peak_summary": peak_summary,
+
+        "peak_violation_ratio": float(
+            peak_violation_ratio
+        ),
+
+        "acceptance": acceptance,
+    }
+
+
+def build_preacceptance_hybrid_candidate(
+    *,
+    tv,
+    w_prior: np.ndarray,
+    dt: float,
+    alignment: str,
+    local_fallback_cfg: dict,
+) -> dict:
+    """
+    在 global acceptance 之前修复 raw TV candidate。
+
+    不增加新的 YAML 参数。
+    """
+    W_tv_candidate = np.asarray(
+        tv.W_best,
+        dtype=float,
+    )
+
+    if W_tv_candidate.ndim != 2:
+        raise ValueError(
+            "tv.W_best must be 2D."
+        )
+
+    n_time = W_tv_candidate.shape[0]
+
+    # ----------------------------------
+    # 1. raw TV 完整 QC
+    # ----------------------------------
+
+    candidate_qc = (
+        compute_wavelet_qc_attributes(
+            W_tv_candidate,
+            dt=dt,
+            wavelet_alignment=alignment,
+        )
+    )
+
+    candidate_side_lobe_ratio = (
+        compute_side_lobe_ratio(
+            W_tv_candidate,
+            dt=dt,
+            alignment=alignment,
+            guard_ms=(
+                local_fallback_cfg[
+                    "side_lobe_guard_ms"
+                ]
+            ),
+        )
+    )
+
+    candidate_edge_energy_ratio = (
+        compute_edge_energy_ratio(
+            W_tv_candidate,
+            edge_fraction=(
+                local_fallback_cfg[
+                    "edge_fraction"
+                ]
+            ),
+        )
+    )
+
+    (
+        candidate_shape_ok_mask,
+        candidate_shape_fallback_raw_mask,
+    ) = build_shape_qc_masks(
+        side_lobe_ratio=(
+            candidate_side_lobe_ratio
+        ),
+
+        edge_energy_ratio=(
+            candidate_edge_energy_ratio
+        ),
+
+        side_lobe_limit_reliable=(
+            local_fallback_cfg[
+                "side_lobe_limit_reliable"
+            ]
+        ),
+
+        side_lobe_limit_fallback=(
+            local_fallback_cfg[
+                "side_lobe_limit_fallback"
+            ]
+        ),
+
+        edge_energy_limit_reliable=(
+            local_fallback_cfg[
+                "edge_energy_limit_reliable"
+            ]
+        ),
+
+        edge_energy_limit_fallback=(
+            local_fallback_cfg[
+                "edge_energy_limit_fallback"
+            ]
+        ),
+    )
+
+    # ----------------------------------
+    # 2. A 区：direct + reliable
+    # ----------------------------------
+
+    (
+        direct_reliable_mask,
+        pointwise_fallback_request_mask,
+        candidate_wavelet_energy_norm,
+        candidate_shape_fallback_request_mask,
+    ) = build_reliable_wavelet_mask(
+        valid_mask=tv.valid_mask,
+
+        peak_metric_ms=(
+            candidate_qc["peak_metric_ms"]
+        ),
+
+        wavelet_energy=(
+            candidate_qc["energy_l2"]
+        ),
+
+        side_lobe_ratio=(
+            candidate_side_lobe_ratio
+        ),
+
+        edge_energy_ratio=(
+            candidate_edge_energy_ratio
+        ),
+
+        dt=dt,
+
+        peak_limit_ms=(
+            local_fallback_cfg[
+                "peak_limit_ms"
+            ]
+        ),
+
+        energy_min=(
+            local_fallback_cfg[
+                "energy_min"
+            ]
+        ),
+
+        pad_ms=(
+            local_fallback_cfg[
+                "pad_ms"
+            ]
+        ),
+
+        use_shape_qc=(
+            local_fallback_cfg[
+                "use_shape_qc"
+            ]
+        ),
+
+        side_lobe_limit_reliable=(
+            local_fallback_cfg[
+                "side_lobe_limit_reliable"
+            ]
+        ),
+
+        side_lobe_limit_fallback=(
+            local_fallback_cfg[
+                "side_lobe_limit_fallback"
+            ]
+        ),
+
+        edge_energy_limit_reliable=(
+            local_fallback_cfg[
+                "edge_energy_limit_reliable"
+            ]
+        ),
+
+        edge_energy_limit_fallback=(
+            local_fallback_cfg[
+                "edge_energy_limit_fallback"
+            ]
+        ),
+    )
+
+    # ----------------------------------
+    # 3. 自动定义 short gap
+    # ----------------------------------
+
+    estimate_step_samples = int(
+        tv.diag.get(
+            "estimate_step_samples",
+            1,
+        )
+    )
+
+    estimate_step_ms = (
+        estimate_step_samples
+        * float(dt)
+        * 1000.0
+    )
+
+    time_smooth_sigma_samples = float(
+        tv.diag.get(
+            "time_smooth_sigma",
+            0.0,
+        )
+    )
+
+    time_smooth_ms = (
+        time_smooth_sigma_samples
+        * float(dt)
+        * 1000.0
+    )
+
+    short_gap_limit_ms = max(
+        2.0 * time_smooth_ms,
+        2.0 * estimate_step_ms,
+    )
+
+    # ----------------------------------
+    # 4. B 区：短 gap
+    # ----------------------------------
+
+    (
+        tv_support_mask,
+        short_gap_mask,
+    ) = (
+        bridge_short_gaps_between_reliable_centers(
+            direct_reliable_mask,
+            dt=dt,
+            short_gap_limit_ms=(
+                short_gap_limit_ms
+            ),
+        )
+    )
+
+    # ----------------------------------
+    # 5. 来源谱系
+    # ----------------------------------
+
+    extrapolated_mask = _diag_bool_mask(
+        tv.diag,
+        "candidate_extrapolated_mask",
+        n_time,
+    )
+
+    prior_fill_mask = _diag_bool_mask(
+        tv.diag,
+        "candidate_prior_fill_mask",
+        n_time,
+    )
+
+    unavailable_mask = _diag_bool_mask(
+        tv.diag,
+        "candidate_unavailable_mask",
+        n_time,
+    )
+
+    provenance_forced_prior_mask = (
+        extrapolated_mask
+        | prior_fill_mask
+        | unavailable_mask
+    )
+
+    # endpoint extrapolation 永远不能
+    # 被 short-gap bridge 救回来
+    tv_support_mask = (
+        tv_support_mask
+        & (~provenance_forced_prior_mask)
+    )
+
+    # ----------------------------------
+    # 6. C 区：必须回 prior
+    # ----------------------------------
+
+    proposed_fallback_mask = (
+        (~tv_support_mask)
+
+        | pointwise_fallback_request_mask
+
+        | provenance_forced_prior_mask
+    )
+
+    short_gap_mask = (
+        short_gap_mask
+        & (~proposed_fallback_mask)
+    )
+
+    # ----------------------------------
+    # 7. 混合
+    # ----------------------------------
+
+    enabled = bool(
+        local_fallback_cfg["enable"]
+    )
+
+    if enabled:
+
+        prior_for_hybrid = np.asarray(
+            w_prior,
+            dtype=float,
+        ).copy()
+
+        # W_best 已经过全局极性选择。
+        # prior 必须与它保持同一极性。
+        if bool(tv.use_negative):
+            prior_for_hybrid = (
+                -prior_for_hybrid
+            )
+
+        W_hybrid, alpha = (
+            apply_local_wavelet_fallback(
+                W_final=W_tv_candidate,
+
+                w_stationary=(
+                    prior_for_hybrid
+                ),
+
+                fallback_mask=(
+                    proposed_fallback_mask
+                ),
+
+                alpha_smooth_samples=(
+                    local_fallback_cfg[
+                        "alpha_smooth_samples"
+                    ]
+                ),
+            )
+        )
+
+        applied_fallback_mask = (
+            proposed_fallback_mask.copy()
+        )
+
+    else:
+
+        W_hybrid = (
+            W_tv_candidate.copy()
+        )
+
+        alpha = np.ones(
+            n_time,
+            dtype=float,
+        )
+
+        applied_fallback_mask = (
+            np.zeros(
+                n_time,
+                dtype=bool,
+            )
+        )
+
+    # ----------------------------------
+    # 8. 输出来源
+    # ----------------------------------
+
+    hard_prior_mask = np.isclose(
+        alpha,
+        0.0,
+        rtol=0.0,
+        atol=1e-15,
+    )
+
+    pure_tv_mask = np.isclose(
+        alpha,
+        1.0,
+        rtol=0.0,
+        atol=1e-15,
+    )
+
+    blend_mask = (
+        (~hard_prior_mask)
+        & (~pure_tv_mask)
+    )
+
+    return {
+        "W_raw": W_tv_candidate,
+
+        "W_hybrid": W_hybrid,
+
+        "candidate_qc": candidate_qc,
+
+        "candidate_side_lobe_ratio":
+            candidate_side_lobe_ratio,
+
+        "candidate_edge_energy_ratio":
+            candidate_edge_energy_ratio,
+
+        "candidate_shape_ok_mask":
+            candidate_shape_ok_mask,
+
+        "candidate_shape_fallback_raw_mask":
+            candidate_shape_fallback_raw_mask,
+
+        "direct_reliable_mask":
+            direct_reliable_mask,
+
+        "pointwise_fallback_request_mask":
+            pointwise_fallback_request_mask,
+
+        "candidate_shape_fallback_request_mask":
+            candidate_shape_fallback_request_mask,
+
+        "candidate_wavelet_energy_norm":
+            candidate_wavelet_energy_norm,
+
+        "tv_support_mask":
+            tv_support_mask,
+
+        "short_gap_mask":
+            short_gap_mask,
+
+        "extrapolated_mask":
+            extrapolated_mask,
+
+        "prior_fill_mask":
+            prior_fill_mask,
+
+        "unavailable_mask":
+            unavailable_mask,
+
+        "provenance_forced_prior_mask":
+            provenance_forced_prior_mask,
+
+        "proposed_fallback_mask":
+            proposed_fallback_mask,
+
+        "applied_fallback_mask":
+            applied_fallback_mask,
+
+        "alpha":
+            alpha,
+
+        "pure_tv_mask":
+            pure_tv_mask,
+
+        "hard_prior_mask":
+            hard_prior_mask,
+
+        "blend_mask":
+            blend_mask,
+
+        "short_gap_limit_ms":
+            float(short_gap_limit_ms),
+
+        "estimate_step_ms":
+            float(estimate_step_ms),
+
+        "time_smooth_ms":
+            float(time_smooth_ms),
+
+        "enabled":
+            enabled,
     }
 
 
@@ -746,6 +1537,17 @@ def _save_and_plot_results(
             "s_syn_prior": after_prior.s_syn,
             "stationary_candidate_w_raw": stationary_candidate_w,
             "stationary_candidate_s_syn_raw": stationary_candidate_s_syn_raw,
+            "constant_phase_zero_phase_wavelet": (
+                after_prior.constant_phase_zero_phase_wavelet
+            ),
+            "constant_phase_phase_grid_deg": (
+                after_prior.constant_phase_phase_grid_deg
+            ),
+            "constant_phase_phase_cc": after_prior.constant_phase_phase_cc,
+            "constant_phase_spectrum_hz": after_prior.constant_phase_spectrum_hz,
+            "constant_phase_spectrum_amplitude": (
+                after_prior.constant_phase_spectrum_amplitude
+            ),
             "dt": np.asarray(data.dt),
             "f_dom": np.asarray(data.f_dom),
             "tv_valid_mask": tv.valid_mask,
@@ -860,27 +1662,6 @@ def _save_and_plot_results(
     )
     copy_config_file(config_path, result_dir, out_name="config_used.yaml")
 
-    # 修改为绘制时变反演程序（run_tv_wavelet_stage）实际使用的先验子波
-    plot_single_wavelet(
-        w=after_prior.w,
-        dt=data.dt,
-        alignment=alignment,
-        result_dir=result_dir,
-        filename="fig00_prior_wavelet_for_tv.png",
-        title="Prior Wavelet for TV Inversion",
-    )
-
-    # 如果平稳子波反演因不满足约束被拒绝（例如主峰过大），单独绘制发生畸变的候选子波
-    if after_prior.stationary_candidate_result is not None and not after_prior.stationary_candidate_accepted:
-        plot_single_wavelet(
-            w=after_prior.stationary_candidate_result.w,
-            dt=data.dt,
-            alignment=alignment,
-            result_dir=result_dir,
-            filename="fig00_rejected_stationary_candidate.png",
-            title="Rejected Stationary Candidate (Fallback Triggered)",
-        )
-
     # 图件展示的是最终 W，因此绘图掩码和形态曲线也必须使用最终口径。
     plot_reliable_mask = extended_wavelet_diagnostics.get(
         "final_reliable_mask",
@@ -918,6 +1699,10 @@ def _save_and_plot_results(
         side_lobe_ratio=plot_side_lobe_ratio,
         edge_energy_ratio=plot_edge_energy_ratio,
         centroid_frequency_hz=final_qc["centroid_frequency_hz"],
+        candidate_diagnostics=extended_wavelet_diagnostics,
+        final_wavelet_source_code=extended_wavelet_diagnostics.get(
+            "final_wavelet_source_code"
+        ),
         robust_sigma=tv.diag.get("robust_sigma"),
         weight_mean=tv.diag.get("weight_mean"),
         weight_min=tv.diag.get("weight_min"),
@@ -964,6 +1749,15 @@ def _save_and_plot_results(
         causal_peak_allowed_ms=tuple(cfg.wavelet.causal_peak_allowed_ms),
         r_time=dtw.r_time,
         w_ricker=w_ricker_qc,
+        w_prior=after_prior.w,
+        w_rejected_stationary=(
+            after_prior.stationary_candidate_result.w
+            if (
+                after_prior.stationary_candidate_result is not None
+                and not after_prior.stationary_candidate_accepted
+            )
+            else None
+        ),
     )
 
     comparison_cfg = getattr(cfg, "comparison", None)
@@ -1112,25 +1906,53 @@ def _main_impl(config_path: str):
     )
 
     # DTW 后重新估计平稳子波先验，为时变子波反演提供物理可解释的参考子波。
-    after_prior = build_stationary_prior_with_fallback(
-        r_time=dtw.r_time,
-        s_obs=data.obs_work,
-        dt=data.dt,
-        f_dom=data.f_dom,
-        wavelet_length_s=cfg.wavelet.length_s,
-        alignment=alignment,
-        strict_source="strict_stationary_center_after_DTW",
-        fallback_source="center_ricker_prior_after_DTW",
-        mu1=cfg.stationary.mu1,
-        mu2=cfg.stationary.mu2,
-        mu_dc=cfg.stationary.mu_dc,
-        damping_ratio=cfg.stationary.damping_ratio,
-        svd_cutoff_ratio=cfg.stationary.svd_cutoff_ratio,
-        peak_lock=cfg.stationary.peak_lock,
-        max_peak_shift_ms=center_max_peak_shift_ms,
-        data_window_factor=cfg.wavelet.data_window_factor,
-        verbose=True,
-    )
+    prior_method = str(
+        getattr(cfg.stationary, "prior_method", "strict_stationary")
+    ).strip().lower()
+
+    if prior_method in {"constant_phase", "statistical_constant_phase"}:
+        after_prior = build_constant_phase_prior_with_fallback(
+            r_time=dtw.r_time,
+            s_obs=data.obs_work,
+            dt=data.dt,
+            f_dom=data.f_dom,
+            wavelet_length_s=cfg.wavelet.length_s,
+            alignment=alignment,
+            source="statistical_constant_phase_prior_after_DTW",
+            fallback_source="center_ricker_prior_after_DTW",
+            max_peak_shift_ms=center_max_peak_shift_ms,
+            data_window_factor=cfg.wavelet.data_window_factor,
+            verbose=True,
+        )
+    elif prior_method in {"strict_stationary", "stationary", "free_form"}:
+        after_prior = build_stationary_prior_with_fallback(
+            r_time=dtw.r_time,
+            s_obs=data.obs_work,
+            dt=data.dt,
+            f_dom=data.f_dom,
+            wavelet_length_s=cfg.wavelet.length_s,
+            alignment=alignment,
+            strict_source="strict_stationary_center_after_DTW",
+            fallback_source="center_ricker_prior_after_DTW",
+            mu1=cfg.stationary.mu1,
+            mu2=cfg.stationary.mu2,
+            mu_dc=cfg.stationary.mu_dc,
+            mu_edge=float(getattr(cfg.stationary, "mu_edge", 0.0)),
+            edge_fraction=float(getattr(cfg.stationary, "edge_fraction", 0.12)),
+            edge_taper=str(getattr(cfg.stationary, "edge_taper", "cosine")),
+            damping_ratio=cfg.stationary.damping_ratio,
+            svd_cutoff_ratio=cfg.stationary.svd_cutoff_ratio,
+            peak_lock=cfg.stationary.peak_lock,
+            max_peak_shift_ms=center_max_peak_shift_ms,
+            data_window_factor=cfg.wavelet.data_window_factor,
+            verbose=True,
+        )
+    else:
+        raise ValueError(
+            "stationary.prior_method 必须是 "
+            "'strict_stationary' 或 'constant_phase'，"
+            f"实际为 {prior_method!r}。"
+        )
 
     print(f"[DTW] CC = {dtw.cc_after:.6f}")
     print(f"[After-DTW prior] source = {after_prior.source}")
@@ -1217,161 +2039,352 @@ def _main_impl(config_path: str):
         verbose=True,
     )
 
+    local_fallback_cfg = (
+        _get_local_wavelet_fallback_config(
+            cfg
+        )
+    )
+
+    hybrid = (
+        build_preacceptance_hybrid_candidate(
+            tv=tv,
+            w_prior=after_prior.w,
+            dt=data.dt,
+            alignment=alignment,
+            local_fallback_cfg=(
+                local_fallback_cfg
+            ),
+        )
+    )
+
+    hybrid_eval = (
+        evaluate_wavelet_matrix_candidate(
+            W=hybrid["W_hybrid"],
+            r_time=dtw.r_time,
+            obs_work=data.obs_work,
+            dt=data.dt,
+            alignment=alignment,
+            cc_after_dtw=dtw.cc_after,
+            cc_prior=after_prior.cc,
+            env_prior=after_prior.env_cc,
+            cfg=cfg,
+        )
+    )
+
+    raw_tv_W_pass = bool(
+        tv.W_pass
+    )
+
+    hybrid_W_pass = bool(
+        hybrid_eval[
+            "acceptance"
+        ].passed
+    )
+
+    print(
+        "[Pre-acceptance hybrid] "
+        f"enabled = {hybrid['enabled']}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"short gap limit = "
+        f"{hybrid['short_gap_limit_ms']:.1f} ms"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"direct reliable ratio = "
+        f"{np.mean(hybrid['direct_reliable_mask']):.3f}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"short gap ratio = "
+        f"{np.mean(hybrid['short_gap_mask']):.3f}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"hard prior ratio = "
+        f"{np.mean(hybrid['hard_prior_mask']):.3f}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"blend ratio = "
+        f"{np.mean(hybrid['blend_mask']):.3f}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"raw CC = {tv.cc_direct:.6f}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"hybrid CC = "
+        f"{hybrid_eval['similarity']['cc_direct']:.6f}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"raw pass = {raw_tv_W_pass}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"hybrid pass = {hybrid_W_pass}"
+    )
+    print(
+        "[Pre-acceptance hybrid] "
+        f"reasons = "
+        f"{hybrid_eval['acceptance'].reasons}"
+    )
+
     # Q 约束只作为候选模型：通过 QC 才会进入最终结果，否则保留 TV 或平稳兜底。
-    f_min, f_max = _q_frequency_bounds(cfg, data.f_dom)
+    f_min, f_max = _q_frequency_bounds(
+        cfg,
+        data.f_dom,
+    )
+
     q_result = try_q_constraint_stage(
-        W_est_best=tv.W_best,
+        W_est_best=(
+            hybrid["W_hybrid"]
+        ),
         r_time=dtw.r_time,
         obs_work=data.obs_work,
         dt=data.dt,
         f_dom=data.f_dom,
         alignment=alignment,
-        W_pass=tv.W_pass,
+        W_pass=hybrid_W_pass,
         enable_q=cfg.q.enable,
-        cc_tv_direct=tv.cc_direct,
-        env_tv=tv.env_cc,
+        cc_tv_direct=float(
+            hybrid_eval[
+                "similarity"
+            ]["cc_direct"]
+        ),
+        env_tv=float(
+            hybrid_eval[
+                "similarity"
+            ]["env_cc"]
+        ),
         f_min=f_min,
         f_max=f_max,
-        ref_range=tuple(cfg.q.ref_range),
-        deep_range=tuple(cfg.q.deep_range),
+        ref_range=tuple(
+            cfg.q.ref_range
+        ),
+        deep_range=tuple(
+            cfg.q.deep_range
+        ),
         Q_min=cfg.q.Q_min,
         Q_max=cfg.q.Q_max,
-        freeze_above_ref=cfg.q.freeze_above_ref,
-        max_cc_drop_vs_tv=cfg.q.max_cc_drop_vs_tv,
-        max_env_drop_vs_tv=cfg.q.max_env_drop_vs_tv,
-        max_lag_ms=cfg.q.max_lag_ms,
+        freeze_above_ref=(
+            cfg.q.freeze_above_ref
+        ),
+        max_cc_drop_vs_tv=(
+            cfg.q.max_cc_drop_vs_tv
+        ),
+        max_env_drop_vs_tv=(
+            cfg.q.max_env_drop_vs_tv
+        ),
+        max_lag_ms=(
+            cfg.q.max_lag_ms
+        ),
         verbose=True,
     )
 
     # 最终模型选择只在已经完成的候选之间切换，不重新计算任何物理量。
     final = choose_final_model(
         alignment=alignment,
-        W_pass=tv.W_pass,
+        W_pass=hybrid_W_pass,
         q_result=q_result,
-        W_est_best=tv.W_best,
-        s_syn_tv_direct=tv.s_syn,
+        W_est_best=(
+            hybrid["W_hybrid"]
+        ),
+        s_syn_tv_direct=(
+            hybrid_eval["s_syn"]
+        ),
         w_prior=after_prior.w,
         s_syn_prior=after_prior.s_syn,
     )
 
-    W_final = final["W_final"]
-    s_syn_final = final["s_syn_final"]
-    final_model_type = final["model_type"]
-    q_pass = final["q_pass"]
-
-    W_final_before_local_fallback = np.asarray(W_final, dtype=float).copy()
-    s_syn_final_before_local_fallback = np.asarray(s_syn_final, dtype=float).copy()
-
-    local_fallback_cfg = _get_local_wavelet_fallback_config(cfg)
-    local_fallback_config_enabled = local_fallback_cfg["enable"]
-    local_peak_limit_ms = local_fallback_cfg["peak_limit_ms"]
-    local_energy_min = local_fallback_cfg["energy_min"]
-    local_pad_ms = local_fallback_cfg["pad_ms"]
-    local_alpha_smooth_samples = local_fallback_cfg["alpha_smooth_samples"]
-
-    # 候选 W 始终指 TV 反演经全局极性选择后的 tv.W_best。
-    # 即使 local fallback 关闭，也必须计算候选形态 QC，避免 valid/reliable 语义失真。
-    W_tv_candidate = np.asarray(tv.W_best, dtype=float)
-    candidate_qc = compute_wavelet_qc_attributes(
-        W_tv_candidate,
-        dt=data.dt,
-        wavelet_alignment=alignment,
+    W_final = np.asarray(
+        final["W_final"],
+        dtype=float,
     )
-    candidate_side_lobe_ratio = compute_side_lobe_ratio(
-        W_tv_candidate,
-        dt=data.dt,
-        alignment=alignment,
-        guard_ms=local_fallback_cfg["side_lobe_guard_ms"],
+    s_syn_final = np.asarray(
+        final["s_syn_final"],
+        dtype=float,
     )
-    candidate_edge_energy_ratio = compute_edge_energy_ratio(
-        W_tv_candidate,
-        edge_fraction=local_fallback_cfg["edge_fraction"],
+    final_model_type = (
+        final["model_type"]
     )
-    (
-        candidate_shape_ok_mask,
-        candidate_shape_fallback_raw_mask,
-    ) = build_shape_qc_masks(
-        side_lobe_ratio=candidate_side_lobe_ratio,
-        edge_energy_ratio=candidate_edge_energy_ratio,
-        side_lobe_limit_reliable=local_fallback_cfg["side_lobe_limit_reliable"],
-        side_lobe_limit_fallback=local_fallback_cfg["side_lobe_limit_fallback"],
-        edge_energy_limit_reliable=local_fallback_cfg["edge_energy_limit_reliable"],
-        edge_energy_limit_fallback=local_fallback_cfg["edge_energy_limit_fallback"],
-    )
-    (
-        candidate_reliable_mask,
-        candidate_fallback_request_mask,
-        candidate_wavelet_energy_norm,
-        candidate_shape_fallback_request_mask,
-    ) = build_reliable_wavelet_mask(
-        valid_mask=tv.valid_mask,
-        peak_metric_ms=candidate_qc["peak_metric_ms"],
-        wavelet_energy=candidate_qc["energy_l2"],
-        side_lobe_ratio=candidate_side_lobe_ratio,
-        edge_energy_ratio=candidate_edge_energy_ratio,
-        dt=data.dt,
-        peak_limit_ms=local_peak_limit_ms,
-        energy_min=local_energy_min,
-        pad_ms=local_pad_ms,
-        use_shape_qc=local_fallback_cfg["use_shape_qc"],
-        side_lobe_limit_reliable=local_fallback_cfg["side_lobe_limit_reliable"],
-        side_lobe_limit_fallback=local_fallback_cfg["side_lobe_limit_fallback"],
-        edge_energy_limit_reliable=local_fallback_cfg["edge_energy_limit_reliable"],
-        edge_energy_limit_fallback=local_fallback_cfg["edge_energy_limit_fallback"],
+    q_pass = bool(
+        final["q_pass"]
     )
 
-    # 以下 legacy 局部变量仍指向候选诊断，保存时会同时写入明确的新字段名。
-    reliable_mask = candidate_reliable_mask
-    wavelet_energy_norm = candidate_wavelet_energy_norm
-    side_lobe_ratio = candidate_side_lobe_ratio
-    edge_energy_ratio = candidate_edge_energy_ratio
-    shape_fallback_mask = candidate_shape_fallback_request_mask
+    W_final_before_local_fallback = (
+        np.asarray(
+            tv.W_best,
+            dtype=float,
+        ).copy()
+    )
 
-    local_fallback_mask = np.zeros_like(data.t_work, dtype=bool)
-    local_fallback_alpha = np.ones_like(data.t_work, dtype=float)
-    local_fallback_enabled = (
-        local_fallback_config_enabled
+    s_syn_final_before_local_fallback = (
+        np.asarray(
+            tv.s_syn,
+            dtype=float,
+        ).copy()
+    )
+
+    W_tv_candidate = np.asarray(
+        tv.W_best,
+        dtype=float,
+    )
+
+    local_peak_limit_ms = float(
+        local_fallback_cfg["peak_limit_ms"]
+    )
+
+    local_energy_min = float(
+        local_fallback_cfg["energy_min"]
+    )
+
+    local_pad_ms = float(
+        local_fallback_cfg["pad_ms"]
+    )
+
+    local_alpha_smooth_samples = float(
+        local_fallback_cfg["alpha_smooth_samples"]
+    )
+
+    candidate_reliable_mask = (
+        hybrid["direct_reliable_mask"]
+    )
+
+    candidate_fallback_request_mask = (
+        hybrid[
+            "pointwise_fallback_request_mask"
+        ]
+    )
+
+    candidate_wavelet_energy_norm = (
+        hybrid[
+            "candidate_wavelet_energy_norm"
+        ]
+    )
+
+    candidate_shape_fallback_request_mask = (
+        hybrid[
+            "candidate_shape_fallback_request_mask"
+        ]
+    )
+
+    candidate_shape_fallback_raw_mask = (
+        hybrid[
+            "candidate_shape_fallback_raw_mask"
+        ]
+    )
+
+    candidate_shape_ok_mask = (
+        hybrid["candidate_shape_ok_mask"]
+    )
+
+    candidate_side_lobe_ratio = (
+        hybrid[
+            "candidate_side_lobe_ratio"
+        ]
+    )
+
+    candidate_edge_energy_ratio = (
+        hybrid[
+            "candidate_edge_energy_ratio"
+        ]
+    )
+
+    candidate_qc = (
+        hybrid["candidate_qc"]
+    )
+
+    reliable_mask = (
+        candidate_reliable_mask
+    )
+
+    wavelet_energy_norm = (
+        candidate_wavelet_energy_norm
+    )
+
+    side_lobe_ratio = (
+        candidate_side_lobe_ratio
+    )
+
+    edge_energy_ratio = (
+        candidate_edge_energy_ratio
+    )
+
+    shape_fallback_mask = (
+        candidate_shape_fallback_request_mask
+    )
+
+    local_fallback_enabled = bool(
+        hybrid["enabled"]
+    )
+
+    local_fallback_mask = (
+        hybrid["applied_fallback_mask"]
+    )
+
+    local_fallback_alpha = (
+        hybrid["alpha"]
+    )
+
+    local_fallback_hard_ratio = float(
+        np.mean(
+            local_fallback_mask
+        )
+    )
+
+    local_fallback_effective_ratio = float(
+        np.mean(
+            1.0
+            - local_fallback_alpha
+        )
+    )
+
+    local_fallback_ratio = (
+        local_fallback_effective_ratio
+    )
+
+    final_uses_preacceptance_hybrid = bool(
+        local_fallback_enabled
         and final_model_type == "W_est_best_no_Q"
-        and bool(tv.W_pass)
     )
-    local_fallback_hard_ratio = 0.0
-    local_fallback_effective_ratio = 0.0
-    local_fallback_ratio = 0.0
 
-    if local_fallback_enabled:
-        local_fallback_mask = candidate_fallback_request_mask.copy()
-        local_fallback_hard_ratio = float(np.mean(local_fallback_mask))
+    final_model_display_type = (
+        "W_est_best_no_Q_preacceptance_hybrid"
+        if final_uses_preacceptance_hybrid
+        else final_model_type
+    )
 
-        W_final, local_fallback_alpha = apply_local_wavelet_fallback(
-            W_final=W_final,
-            w_stationary=after_prior.w,
-            fallback_mask=local_fallback_mask,
-            alpha_smooth_samples=local_alpha_smooth_samples,
-        )
-        local_fallback_effective_ratio = float(np.mean(1.0 - local_fallback_alpha))
-        local_fallback_ratio = local_fallback_effective_ratio
-
-        s_syn_final = nonstationary_convolution(
-            r_time=dtw.r_time,
-            W=W_final,
-            alignment=alignment,
-        )
-        s_syn_final = match_rms(s_syn_final, data.obs_work)
-        final_model_type = f"{final_model_type}_local_fallback"
-
-    print(f"[Local fallback] enabled = {local_fallback_enabled}")
-    print(f"[Local fallback] hard_ratio      = {local_fallback_hard_ratio:.3f}")
-    print(f"[Local fallback] effective_ratio = {local_fallback_effective_ratio:.3f}")
     print(
-        "[Candidate QC] reliable_ratio  = "
+        "[Local fallback] "
+        f"enabled = {local_fallback_enabled}"
+    )
+    print(
+        "[Local fallback] "
+        f"hard_ratio      = "
+        f"{local_fallback_hard_ratio:.3f}"
+    )
+    print(
+        "[Local fallback] "
+        f"effective_ratio = "
+        f"{local_fallback_effective_ratio:.3f}"
+    )
+    print(
+        "[Candidate QC] "
+        f"reliable_ratio  = "
         f"{float(np.mean(candidate_reliable_mask)):.3f}"
     )
     print(
-        "[Candidate QC] shape_bad_ratio = "
+        "[Candidate QC] "
+        f"shape_bad_ratio = "
         f"{float(np.mean(candidate_shape_fallback_raw_mask)):.3f}"
     )
     print(
-        "[Local fallback] shape_ratio     = "
+        "[Local fallback] "
+        f"shape_ratio     = "
         f"{float(np.mean(local_fallback_mask & candidate_shape_fallback_request_mask)):.3f}"
     )
 
@@ -1465,12 +2478,33 @@ def _main_impl(config_path: str):
         fallback_center_step_s=fallback_center_step_s,
     )
 
-    base_final_model_type = final["model_type"]
-    final_wavelet_source_code, final_wavelet_source_masks = (
-        build_final_wavelet_source_codes(
-            base_model_type=base_final_model_type,
-            local_fallback_alpha=local_fallback_alpha,
+    base_final_model_type = (
+        final["model_type"]
+    )
+
+    if (
+        base_final_model_type
+        == "W_est_best_no_Q"
+    ):
+        final_source_alpha = (
+            hybrid["alpha"]
         )
+    else:
+        final_source_alpha = np.ones(
+            len(data.t_work),
+            dtype=float,
+        )
+
+    (
+        final_wavelet_source_code,
+        final_wavelet_source_masks,
+    ) = build_final_wavelet_source_codes(
+        base_model_type=(
+            base_final_model_type
+        ),
+        local_fallback_alpha=(
+            final_source_alpha
+        ),
     )
     peak_summary_before_local_fallback = _summarize_peak_metric(
         final_qc_before_local_fallback["peak_metric_ms"],
@@ -1591,8 +2625,10 @@ def _main_impl(config_path: str):
         CC_stationary=after_prior.cc,
         CC_after_DTW=dtw.cc_after,
         CC_prior_after_DTW=after_prior.cc,
-        CC_tv_direct=tv.cc_direct,
-        W_pass=tv.W_pass,
+        CC_tv_direct=float(
+            hybrid_eval["similarity"]["cc_direct"]
+        ),
+        W_pass=hybrid_W_pass,
         q_pass=q_pass,
         CC_Q=q_result.cc_q,
         Q_global=q_result.Q_global,
@@ -1615,6 +2651,55 @@ def _main_impl(config_path: str):
 
     metrics.update(
         {
+            "raw_tv_W_pass": bool(tv.W_pass),
+            "raw_tv_CC_direct": float(tv.cc_direct),
+            "raw_tv_best_lag_ms": float(tv.best_lag_ms),
+            "raw_tv_peak_abs_p90": float(tv.peak_abs_p90),
+            "raw_tv_acceptance_reasons": list(tv.acceptance_reasons),
+            "hybrid_tv_W_pass": bool(hybrid_W_pass),
+            "hybrid_tv_CC_direct": float(
+                hybrid_eval["similarity"]["cc_direct"]
+            ),
+            "hybrid_tv_env_cc": float(
+                hybrid_eval["similarity"]["env_cc"]
+            ),
+            "hybrid_tv_best_lag_ms": float(
+                hybrid_eval["similarity"]["best_lag_ms"]
+            ),
+            "hybrid_tv_peak_p10_ms": float(
+                hybrid_eval["peak_summary"]["p10"]
+            ),
+            "hybrid_tv_peak_median_ms": float(
+                hybrid_eval["peak_summary"]["median"]
+            ),
+            "hybrid_tv_peak_p90_ms": float(
+                hybrid_eval["peak_summary"]["p90"]
+            ),
+            "hybrid_tv_peak_abs_p90_ms": float(
+                hybrid_eval["peak_summary"]["abs_p90"]
+            ),
+            "hybrid_tv_peak_violation_ratio": float(
+                hybrid_eval["peak_violation_ratio"]
+            ),
+            "hybrid_short_gap_limit_ms": float(
+                hybrid["short_gap_limit_ms"]
+            ),
+            "hybrid_direct_reliable_ratio": float(
+                np.mean(hybrid["direct_reliable_mask"])
+            ),
+            "hybrid_short_gap_ratio": float(
+                np.mean(hybrid["short_gap_mask"])
+            ),
+            "hybrid_hard_prior_ratio": float(
+                np.mean(hybrid["hard_prior_mask"])
+            ),
+            "hybrid_blend_ratio": float(
+                np.mean(hybrid["blend_mask"])
+            ),
+            "hybrid_tv_support_ratio": float(
+                np.mean(hybrid["tv_support_mask"])
+            ),
+            "hybrid_candidate_scope": "local_repair_before_global_acceptance",
             "residual_median_p90": residual_median_p90,
             "residual_median_med": residual_median_med,
             "tv_loss_type": str(getattr(cfg.tv_wavelet, "loss_type", "l2")),
@@ -1653,6 +2738,33 @@ def _main_impl(config_path: str):
                 after_prior.stationary_rejection_reason
             ),
             "stationary_prior_source": str(after_prior.stationary_prior_source),
+            "prior_source": str(after_prior.source),
+            "CC_selected_prior_after_DTW": float(after_prior.cc),
+            "stationary_prior_method_configured": str(
+                getattr(cfg.stationary, "prior_method", "strict_stationary")
+            ),
+            "constant_phase_candidate_accepted": bool(
+                after_prior.constant_phase_candidate_accepted
+            ),
+            "constant_phase_deg": float(after_prior.constant_phase_deg),
+            "constant_phase_spectral_peak_hz": float(
+                after_prior.constant_phase_spectral_peak_hz
+            ),
+            "constant_phase_band_low_hz": float(
+                after_prior.constant_phase_band_low_hz
+            ),
+            "constant_phase_band_high_hz": float(
+                after_prior.constant_phase_band_high_hz
+            ),
+            "constant_phase_candidate_cc": float(
+                after_prior.constant_phase_candidate_cc
+            ),
+            "constant_phase_ricker_cc": float(
+                after_prior.constant_phase_ricker_cc
+            ),
+            "constant_phase_rejection_reason": str(
+                after_prior.constant_phase_rejection_reason
+            ),
             "CC_stationary_raw": float(CC_stationary_raw),
             "CC_stationary_raw_env": float(stationary_candidate_env_cc_raw),
             "CC_stationary_raw_scope": (
@@ -1928,6 +3040,7 @@ def _main_impl(config_path: str):
         "candidate_boundary_peak_mask": candidate_boundary_peak_mask,
         "candidate_peak_metric_ms": candidate_qc["peak_metric_ms"],
         "candidate_wavelet_energy_l2": candidate_qc["energy_l2"],
+        "candidate_centroid_frequency_hz": candidate_qc["centroid_frequency_hz"],
         "candidate_wavelet_energy_norm": candidate_wavelet_energy_norm,
         "candidate_wavelet_origin_code": tv.diag.get(
             "candidate_wavelet_origin_code",
@@ -1953,6 +3066,19 @@ def _main_impl(config_path: str):
             "candidate_unavailable_mask",
             np.array([], dtype=bool),
         ),
+        "tv_hybrid_W": hybrid["W_hybrid"],
+        "tv_hybrid_alpha": hybrid["alpha"],
+        "tv_hybrid_support_mask": hybrid["tv_support_mask"],
+        "tv_hybrid_short_gap_mask": hybrid["short_gap_mask"],
+        "tv_hybrid_hard_prior_mask": hybrid["hard_prior_mask"],
+        "tv_hybrid_blend_mask": hybrid["blend_mask"],
+        "tv_hybrid_extrapolated_mask": hybrid["extrapolated_mask"],
+        "tv_hybrid_provenance_forced_prior_mask": hybrid[
+            "provenance_forced_prior_mask"
+        ],
+        "tv_hybrid_peak_metric_ms": hybrid_eval[
+            "qc"
+        ]["peak_metric_ms"],
         "attempted_center_indices": attempted_center_indices,
         "candidate_invalid_at_centers": candidate_invalid_at_centers,
         "candidate_unreliable_at_centers": candidate_unreliable_at_centers,

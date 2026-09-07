@@ -1,0 +1,60 @@
+{
+  "stationary_parameters": {
+    "alignment": "center",
+    "mu1": 0.5,
+    "mu2": 1.0,
+    "mu_dc": 15.0,
+    "damping_ratio": 0.0,
+    "svd_cutoff_ratio": 0.001,
+    "mu_edge": 2.0,
+    "edge_fraction": 0.12,
+    "edge_taper": "cosine"
+  },
+  "global_wavelet_lengths": [
+    65,
+    79,
+    101,
+    129,
+    201
+  ],
+  "local_wavelet_length": 201,
+  "local_data_window_factor": 3.0,
+  "metrics": {
+    "global_common_support_median_abs_correlation": 0.9908770513901071,
+    "global_common_support_min_abs_correlation": 0.9696159078815602,
+    "median_raw_effective_rank_ratio": 1.0,
+    "median_raw_condition_ratio": 0.07028918313916378,
+    "median_total_regularization_hessian_ratio": 1.6854162918071498,
+    "median_objective_regularization_over_data": 0.008174921111676385,
+    "local_wavelet_median_abs_correlation": 0.5064145892641143,
+    "local_wavelet_min_abs_correlation": 0.1748411008613165,
+    "median_local_effective_rank_ratio": 1.0,
+    "median_local_condition_ratio": 0.029733456495209778,
+    "max_damping_probe_relative_change": 0.0
+  },
+  "heuristic_flags": {
+    "length_sensitive_core_solution": false,
+    "raw_operator_ill_conditioning_likely": false,
+    "regularization_hessian_very_weak_relative_to_data": false,
+    "independent_local_wavelets_vary_strongly": true,
+    "damping_parameter_appears_numerically_inactive": true
+  },
+  "interpretation": [
+    "不同 wavelet length 的共同中心区间总体较稳定；若边缘仍异常，应重点检查尾部自由度和边界附近弱约束方向。",
+    "按当前启发式阈值，R 的奇异谱没有表现出极端病态；应进一步关注模型失配、时变性或正则化尺度。",
+    "互不耦合的局部窗口子波差异明显。这支持全局 stationary 假设不足，或不同窗口的数据约束质量差异较大；请结合 local condition_ratio 和 r_energy 区分两者。",
+    "_safe_svd_solve 的数值探针对 damping_ratio 基本无响应；请检查当前实现是否仍使用截断伪逆 1/S，而没有使用阻尼滤波因子。"
+  ],
+  "threshold_note": "heuristic_flags 只用于快速定位，不是物理验收门槛；最终判断应结合图件、奇异谱、局部能量及井震地质背景。",
+  "input": {
+    "result_bundle": "F:\\01JDX_code\\python_code\\seismic_well_tying\\true_datacode_student_t_final_CB805\\_experiment_results\\cb805_center_student_t_L129_v01\\result_bundle.npz",
+    "config": "F:\\01JDX_code\\python_code\\seismic_well_tying\\true_datacode_student_t_final_CB805\\_experiment_results\\cb805_center_student_t_L129_v01\\config_used.yaml",
+    "dt_s": 0.0009999999999998899,
+    "sample_count": 2546,
+    "t_start_s": 0.58,
+    "t_end_s": 3.125,
+    "dt_relative_nonuniformity": 4.4408920940602233e-13,
+    "common_axis_start_ms": -24.999999999997247,
+    "common_axis_end_ms": 24.999999999997247
+  }
+}

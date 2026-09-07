@@ -18,6 +18,7 @@ from plotting.plot_wavelets import (
     plot_wavelet_slices,
     plot_wavelet_selected_time_comparison,
     plot_time_varying_wavelet_wiggle_panel,
+    plot_single_wavelet,
 )
 
 
@@ -36,90 +37,18 @@ def _normalize_plot_trace(x, eps=1e-12):
     return x / scale
 
 
-def plot_trace_comparison(
-    *,
-    t_work,
-    obs_work,
-    s_syn_stationary,
-    s_syn_after_dtw,
-    s_syn_tv_direct,
-    s_syn_final,
-    result_dir,
-    filename: str = "fig01_trace_comparison.png",
-    title: str = "Trace comparison",
-):
-    """
-    绘制观测地震道与各阶段合成记录的多道并排/偏移对比图 (fig01_trace_comparison.png)。
-
-    【图像的意义】：
-        直观量化井震标定工作流在各个累进阶段（从初始平稳、DTW时深调整、时变子波反演到最终模型）的
-        波形吻合程度与同相轴对齐品质。通过该图可以“一眼”看出合成波形在何处仍有残余误差。
-
-    【所含内容】：
-        - obs (黑色/基准曲线)：井旁观测地震道。
-        - stationary：平稳子波与反射系数褶积的合成记录（DTW 后的平稳对比基准）。
-        - after_DTW：动态时间规整(DTW)校正时深关系后，用初始子波褶积生成的合成记录。
-        - TV_direct：经过时变子波反演(TVWI)后，直接褶积生成的合成记录。
-        - final：最终输出并推荐用于生产标定的合成记录（若通过质控验收则等同于TV_direct或Q_constrained）。
-
-    【参数含义】：
-        t_work: np.ndarray, 双程时 (TWT) 坐标轴，单位秒 (s)。
-        obs_work: np.ndarray, 归一化后的实测观测地震道。
-        s_syn_stationary: np.ndarray, 对应平稳子波阶段的合成记录。
-        s_syn_after_dtw: np.ndarray, 对应时深对齐阶段的合成记录。
-        s_syn_tv_direct: np.ndarray, 对应时变子波反演阶段的合成记录。
-        s_syn_final: np.ndarray, 最终决策输出的合成记录。
-        result_dir: str/Path, 图像及诊断结果保存的目录路径。
-        filename: str, 保存的文件名，默认为 "fig01_trace_comparison.png"。
-        title: str, 图像的主标题。
-    """
-    result_dir = ensure_dir(result_dir)
-    t_work = np.asarray(t_work, dtype=float)
-
-    traces = [
-        ("obs", obs_work),
-        ("final", s_syn_final),
-        ("after_DTW", s_syn_after_dtw),
-        ("TV_direct", s_syn_tv_direct),
-        ("stationary", s_syn_stationary),
-    ]
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    offset = 0.0  # 垂直偏移量，用于多道并排对比显示
-    for name, trace in traces:
-        if trace is None:
-            continue
-        trace = np.asarray(trace)
-        if trace.size == 0:
-            continue
-        # 归一化后叠加垂直偏移量进行绘制
-        ax.plot(t_work, _normalize_plot_trace(trace) + offset, label=name, linewidth=1.0)
-        offset += 2.0
-
-    ax.set_xlabel("TWT (s)")
-    ax.set_ylabel("Normalized amplitude + offset")
-    ax.set_title(title)
-    ax.legend(loc="best")
-    fig.tight_layout()
-
-    out_path = result_dir / filename
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
-    return out_path
-
-
 def plot_obs_vs_final_wiggle(
     *,
     t_work,
     obs_work,
     s_syn_final,
     result_dir,
-    filename: str = "fig01_obs_vs_final_wiggle.png",
+    filename: str = "obs_vs_final_wiggle.png",
     title: str = "Observed vs Final Wiggle Tying",
 ):
     """
     使用 xwigb 变面积地震道绘制函数，仅绘制观测地震道 (obs) 与最终决策合成记录 (final)
-    的对比图 (fig01_obs_vs_final_wiggle.png)。
+    的对比图 (fig03_obs_vs_final_wiggle.png)。
 
     【图像的意义】：
         采用传统的变面积地震道 (Wiggle Trace with fill) 显示格式，极度清晰地突显观测地震
@@ -139,17 +68,26 @@ def plot_obs_vs_final_wiggle(
     obs_work = np.asarray(obs_work, dtype=float)
     s_syn_final = np.asarray(s_syn_final, dtype=float)
 
-    # 组合为 2D 矩阵 (nt, ntr=2)
-    # 第一道为 obs，第二道为 final
-    seis_data = np.stack([obs_work, s_syn_final], axis=1)
+    # 将观测地震道与最终合成记录各重复 4 道，形成 (nt, 8) 的多道变面积对比微剖面
+    num_repeats = 4
+    obs_repeats = [obs_work] * num_repeats
+    final_repeats = [s_syn_final] * num_repeats
+    seis_data = np.stack(obs_repeats + final_repeats, axis=1)  # shape: (nt, 8)
 
-    fig, ax = plt.subplots(figsize=(6, 8))
+    # 构造 X 轴道位置坐标：
+    # 前 4 道为实测道 (1.0 ~ 4.0)，中间留空一道间隔，后 4 道为最终合成道 (6.0 ~ 9.0)
+    x_obs = np.arange(1.0, num_repeats + 1.0, 1.0)
+    x_gap = x_obs[-1] + 2.0
+    x_final = np.arange(x_gap, x_gap + num_repeats, 1.0)
+    x_coords = np.concatenate([x_obs, x_final])
+
+    fig, ax = plt.subplots(figsize=(7, 8))
     
     # 变面积填充绘制
     xwigb(
         seis_data,
         t=t_work,
-        x=np.array([1.0, 2.0]),
+        x=x_coords,
         scale=0.6,
         linewidth=1.0,
         mode="vertical",
@@ -158,9 +96,11 @@ def plot_obs_vs_final_wiggle(
         ax=ax,
     )
 
-    # 设置更友好的 X 轴刻度标签
-    ax.set_xticks([1.0, 2.0])
-    ax.set_xticklabels(["Observed", "Final Synthetic"])
+    # 设置更友好的 X 轴刻度标签，将标签居中放置在各自 4 道的中心
+    mid_obs = float(np.mean(x_obs))
+    mid_final = float(np.mean(x_final))
+    ax.set_xticks([mid_obs, mid_final])
+    ax.set_xticklabels(["Observed (4 traces)", "Final Synthetic (4 traces)"])
     ax.set_xlabel("")
     ax.set_ylabel("TWT (s)")
     ax.set_title(title)
@@ -182,7 +122,7 @@ def plot_pure_ricker_vs_obs_vs_tv_wiggle(
     s_syn_tv_direct,     # 时变反演子波直接合成记录 (1D array)
     alignment,           # 子波对齐方式 ('center' 或 'causal')
     result_dir,          # 图像保存的目录路径
-    filename: str = "fig012_pure_ricker_vs_obs_vs_tv_wiggle.png",
+    filename: str = "pure_ricker_vs_obs_vs_tv_wiggle.png",
     title: str = "Pure Ricker vs Observed vs TV Wavelet (xwigb)",
 ):
     from utils.xwigb import xwigb
@@ -281,76 +221,16 @@ def plot_pure_ricker_vs_obs_vs_tv_wiggle(
     plt.close(fig)
 
     return out_path
-
-def plot_stationary_syn_obs_xwigb(
-    *,
-    t_work=None,
-    s_syn_after_dtw=None,
-    s_syn_stationary=None,
-    obs_work=None,
-    s_syn_tv_final=None,
-    s_syn_final=None,
-    result_dir=None,
-    filename: str = "fig06_stationary_syn_obs_xwigb.png",
-    title: str = "Stationary Synthetic vs Observed Tying (xwigb)",
-):
-    import numpy as np
-    import pathlib
-    from utils.xwigb import xwigb
-
-    npz_path = r"D:\python_code\python_project\seismic_well\true_data_tying3\true_datacode\_experiment_results\cb323_center_final_smooth_v01\result_bundle.npz"
-    data = np.load(npz_path, allow_pickle=True)
-    
-    # 提取需要的数组（注意：NPZ 中的时变直接反演记录键名是 's_syn_tv_direct'）
-    t_work = data['t_work']
-    obs_work = data['obs_work']
-    s_syn_after_dtw = data['s_syn_after_dtw']
-    s_syn_stationary = data['s_syn_stationary']
-    s_syn_tv_direct = data['s_syn_tv_direct']
-    s_syn_final = data['s_syn_final']
-
-    # 组合为 2D 矩阵 (nt, ntr=5)
-    # 左: DTW后, 中: 平稳, 右: TV直接反演, 最右: Final推荐
-    seis_data = np.stack([s_syn_after_dtw, s_syn_stationary,obs_work, s_syn_tv_direct, s_syn_final], axis=1)
-    
-    fig, ax = plt.subplots(figsize=(8, 8))
-    xwigb(
-        seis_data,
-        t=t_work,
-        x=np.array([1.0, 2.0, 3.0, 4.0, 5.0]),  # 4个道，必须对应 4 个位置坐标
-        scale=0.6,
-        linewidth=1.0,
-        mode="vertical",
-        wiggle_fill="peak_fill",
-        wigb_color="k",
-        ax=ax,
-    )
-    
-    ax.set_xticks([1.0, 2.0, 3.0, 4.0, 5.0])
-    ax.set_xticklabels(["After DTW", "Stationary", "Observed", "TV Wavelet", "Final"])
-    ax.set_xlabel("")
-    ax.set_ylabel("TWT (s)")
-    ax.set_title(title)
-    
-    fig.tight_layout()
-    
-    # 将输出图片安全地保存到 NPZ 文件所在的同一个文件夹中
-    save_dir = pathlib.Path(npz_path).parent
-    out_path = save_dir / filename
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
-    return out_path
-
-    
+  
 
 def plot_dtw_history(
     *,
     dtw_history,
     result_dir,
-    filename: str = "fig05_dtw_history.png",
+    filename: str = "dtw_history.png",
 ):
     """
-    绘制动态时间规整 (DTW) 多阶段候选迭代收敛历史图 (fig05_dtw_history.png)。
+    绘制动态时间规整 (DTW) 多阶段候选迭代收敛历史图 (fig07_dtw_history.png)。
 
     【图像的意义】：
         监控和诊断 DTW 校正时深关系时的收敛过程。展示在不同的校正阶段（如包络对齐、波形对齐、细化对齐），
@@ -364,7 +244,7 @@ def plot_dtw_history(
     【参数含义】：
         dtw_history: list[dict], 包含各步 DTW 迭代诊断信息的字典列表 (如 mode, cc_after, accept 等)。
         result_dir: str/Path, 图像保存的目录路径。
-        filename: str, 保存的文件名，默认为 "fig05_dtw_history.png"。
+        filename: str, 保存的文件名，默认为 "fig07_dtw_history.png"。
     """
     result_dir = ensure_dir(result_dir)
 
@@ -402,10 +282,10 @@ def plot_acceptance_summary(
     *,
     metrics,
     result_dir,
-    filename: str = "fig06_acceptance_summary.png",
+    filename: str = "acceptance_summary.png",
 ):
     """
-    绘制标定全流程相关系数 (CC) 柱状对比与最终模型验收决策总结图 (fig06_acceptance_summary.png)。
+    绘制标定全流程相关系数 (CC) 柱状对比与最终模型验收决策总结图 (fig08_acceptance_summary.png)。
 
     【图像的意义】：
         标定方案的“终审判决书”。用直观的柱状图对比每个里程碑阶段的相关系数，并在标题处显著显示
@@ -420,7 +300,7 @@ def plot_acceptance_summary(
     【参数含义】：
         metrics: dict, 全流程最终计算的各项质量指标字典，必须包含各大阶段的 CC 值和 W_pass, q_pass 状态。
         result_dir: str/Path, 图像保存的目录路径。
-        filename: str, 保存的文件名，默认为 "fig06_acceptance_summary.png"。
+        filename: str, 保存的文件名，默认为 "fig08_acceptance_summary.png"。
     """
     result_dir = ensure_dir(result_dir)
 
@@ -428,10 +308,12 @@ def plot_acceptance_summary(
     values = [metrics.get(key, np.nan) for key in keys]
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    ax.bar(keys, values)
+    bars = ax.bar(keys, values)
+    ax.bar_label(bars, fmt="%.3f", padding=3)
     ax.set_ylabel("CC")
+    ax.margins(y=0.2)
     ax.set_title(
-        f"Final: {metrics.get('final_model_type', 'unknown')}\n"
+        f"Final after fallback: {metrics.get('final_model_type', 'unknown')}\n"
         f"W_pass={metrics.get('W_pass')}, q_pass={metrics.get('q_pass')}"
     )
     ax.tick_params(axis="x", rotation=30)
@@ -449,12 +331,12 @@ def plot_peak_metric_with_acceptance_band(
     peak_metric_ms,
     alignment,
     result_dir,
-    filename: str = "fig07_peak_metric_with_acceptance_band.png",
+    filename: str = "peak_metric_with_acceptance_band.png",
     center_peak_allowed_ms=None,
     causal_peak_allowed_ms=(0.0, 40.0),
 ):
     """
-    绘制时变子波波峰随时间偏移特征及质量控制边界带图 (fig07_peak_metric_with_acceptance_band.png)。
+    绘制时变子波波峰随时间偏移特征及质量控制边界带图 (fig09_peak_metric_with_acceptance_band.png)。
 
     【图像的意义】：
         防止时变子波反演因过度拟合而产生非物理的“相位漂移”。这是地球物理质控（QC Gate）中最核心的图形，
@@ -470,7 +352,7 @@ def plot_peak_metric_with_acceptance_band(
         peak_metric_ms: np.ndarray, 每一时刻提取出的子波峰值延迟时间 (ms)。
         alignment: str, 子波卷积对齐方式，'center' (中心对齐/零相位) 或 'causal' (因果/最小相位)。
         result_dir: str/Path, 图像保存的目录路径。
-        filename: str, 保存的文件名，默认为 "fig07_peak_metric_with_acceptance_band.png"。
+        filename: str, 保存的文件名，默认为 "fig09_peak_metric_with_acceptance_band.png"。
         center_peak_allowed_ms: tuple, 中心对齐时允许的最大漂移上下限 (如 -15.0 到 15.0 ms)。
         causal_peak_allowed_ms: tuple, 因果对齐时允许的波峰时变延迟区间 (如 0.0 到 40.0 ms)。
     """
@@ -498,7 +380,7 @@ def plot_peak_metric_with_acceptance_band(
         ax.set_ylabel("Peak time after reflection (ms)")
 
     ax.set_xlabel("TWT (s)")
-    ax.set_title("Peak metric with acceptance band")
+    ax.set_title("Final after fallback\nFinal wavelet peak metric with acceptance band")
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
 
@@ -515,16 +397,17 @@ def plot_wavelet_energy_and_valid_mask(
     valid_mask,
     peak_metric_ms,
     result_dir,
-    filename: str = "fig08_wavelet_energy_and_valid_mask.png",
+    filename: str = "wavelet_energy_and_valid_mask.png",
 ):
     r"""
-    绘制时变子波能量分布、有效计算区域掩码与子波波峰偏移的多轴综合诊断图 (fig08_wavelet_energy_and_valid_mask.png)。
+    绘制时变子波能量分布、有效计算区域掩码与子波波峰偏移的多轴综合诊断图 (fig10_wavelet_energy_and_valid_mask.png)。
 
     【图像的意义】：
         诊断低能量反射系数区域（即反射系数极弱或空白的地层）对时变子波反演稳定性的潜在威胁。
-        - 绿线 (valid_mask) 降为 0 代表该段被静音/屏蔽。
-        - 蓝线 (wavelet_energy) 代表提取的子波强度变化。
-        - 红线 (peak_metric_ms) 监测在低反射能段的相位或波峰是否发生不稳定的震荡。
+        - 绿线 (valid_mask) 为 0 表示该时刻不是通过反演 QC 的直接反演中心，
+          不代表记录被静音，也不代表最终子波无效。
+        - 蓝线 (wavelet_energy) 代表提取的子波强度变化，归一化子波能量。
+        - 红线 (peak_metric_ms) 监测在低反射能段的相位或波峰是否发生不稳定的震荡，子波主峰偏移。
 
     【所含内容】：
         - 左Y轴 (蓝色曲线)：时变子波随深度归一化后的能量曲线 (wavelet_energy_norm)。
@@ -533,11 +416,11 @@ def plot_wavelet_energy_and_valid_mask(
 
     【参数含义】：
         t_work: np.ndarray, 双程时 (TWT) 坐标轴，单位秒 (s)。
-        wavelet_energy: np.ndarray, 每一时刻提取的时变子波总能量 (如 \sum w^2)。
+        wavelet_energy: np.ndarray, shape (N_time,)，候选子波的 L2 范数；仅在图中归一化。
         valid_mask: np.ndarray, 1D 布尔或 0-1 数组，指示时变反演对该时刻是否有效。
         peak_metric_ms: np.ndarray, 时变子波的波峰时间延迟 (ms)。
         result_dir: str/Path, 图像保存的目录路径。
-        filename: str, 保存的文件名，默认为 "fig08_wavelet_energy_and_valid_mask.png"。
+        filename: str, 保存的文件名，默认为 "fig10_wavelet_energy_and_valid_mask.png"。
     """
     result_dir = ensure_dir(result_dir)
     t_work = np.asarray(t_work, dtype=float)
@@ -570,7 +453,7 @@ def plot_wavelet_energy_and_valid_mask(
     handles_right, labels_right = ax_right.get_legend_handles_labels()
     ax_left.legend(handles_left + handles_right, labels_left + labels_right, loc="best")
     ax_left.set_xlabel("TWT (s)")
-    ax_left.set_title("Wavelet energy, valid mask, and peak metric")
+    ax_left.set_title("Candidate before global acceptance\nTV candidate energy, valid mask, and peak metric")
     ax_left.grid(True, alpha=0.25)
     fig.tight_layout()
 
@@ -585,10 +468,10 @@ def plot_centroid_frequency_vs_time(
     t_work,
     centroid_frequency_hz,
     result_dir,
-    filename: str = "fig09_centroid_frequency_vs_time.png",
+    filename: str = "fig11_centroid_frequency_vs_time.png",
 ):
     """
-    绘制提取出的时变子波质心频率随深度（时间）变化曲线图 (fig09_centroid_frequency_vs_time.png)。
+    绘制提取出的时变子波质心频率随深度（时间）变化曲线图 (fig11_centroid_frequency_vs_time.png)。
 
     【图像的意义】：
         定量的反映地层吸收与高频衰减特征。根据高频衰减物理规律，随着双程时变深，
@@ -602,7 +485,7 @@ def plot_centroid_frequency_vs_time(
         t_work: np.ndarray, 双程时 (TWT) 坐标轴，单位秒 (s)。
         centroid_frequency_hz: np.ndarray, 每一时刻子波功率谱求得的质心频率 (Hz)。
         result_dir: str/Path, 图像保存的目录路径。
-        filename: str, 保存的文件名，默认为 "fig09_centroid_frequency_vs_time.png"。
+        filename: str, 保存的文件名，默认为 "fig11_centroid_frequency_vs_time.png"。
     """
     result_dir = ensure_dir(result_dir)
     t_work = np.asarray(t_work, dtype=float)
@@ -612,7 +495,7 @@ def plot_centroid_frequency_vs_time(
     ax.plot(t_work, centroid_frequency_hz, color="tab:blue", linewidth=1.0)
     ax.set_xlabel("TWT (s)")
     ax.set_ylabel("Centroid frequency (Hz)")
-    ax.set_title("Centroid frequency vs time")
+    ax.set_title("Final after fallback\nFinal centroid frequency")
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
 
@@ -651,7 +534,7 @@ def plot_student_t_time_diagnostics(
     robust_scale_floor: float | None,
     outlier_weight_threshold: float,
     result_dir,
-    filename: str = "fig12_student_t_time_diagnostics.png",
+    filename: str = "student_t_time_diagnostics.png",
 ):
     """Plot Student-t scale, weights, effective information and IRLS status."""
     result_dir = ensure_dir(result_dir)
@@ -689,7 +572,7 @@ def plot_student_t_time_diagnostics(
             label="sigma floor",
         )
     axes[0].set_ylabel("Residual scale")
-    axes[0].set_title("Student-t local residual scale")
+    axes[0].set_title("Candidate before global acceptance\nStudent-t local residual scale")
     axes[0].grid(True, alpha=0.25)
     axes[0].legend(loc="best")
 
@@ -706,7 +589,7 @@ def plot_student_t_time_diagnostics(
         )
     axes[1].set_ylim(-0.03, 1.03)
     axes[1].set_ylabel("Weight statistic")
-    axes[1].set_title("Weight strength and down-weighted sample fraction")
+    axes[1].set_title("Candidate before global acceptance\nWeight strength and down-weighted sample fraction")
     axes[1].grid(True, alpha=0.25)
     axes[1].legend(loc="best")
 
@@ -734,7 +617,7 @@ def plot_student_t_time_diagnostics(
         )
     axes[2].set_ylim(-0.03, 1.03)
     axes[2].set_ylabel("Ratio / flag")
-    axes[2].set_title("Remaining effective information and fallback state")
+    axes[2].set_title("Candidate before global acceptance\nEffective information and local solver fallback state")
     axes[2].grid(True, alpha=0.25)
     axes[2].legend(loc="best")
 
@@ -759,7 +642,7 @@ def plot_student_t_time_diagnostics(
     axes[3].axhline(0.0, linewidth=0.8, alpha=0.6)
     axes[3].set_ylabel("Robust code")
     axes[3].set_xlabel("TWT (s)")
-    axes[3].set_title("IRLS state and objective decrease")
+    axes[3].set_title("Candidate before global acceptance\nIRLS state and objective decrease")
     axes[3].grid(True, alpha=0.25)
 
     ax_objective = axes[3].twinx()
@@ -810,7 +693,7 @@ def plot_student_t_weight_map(
     post_qc_valid=None,
     skip_code=None,
     row_filter: str = "all",
-    filename: str = "fig13_student_t_weight_map.png",
+    filename: str = "student_t_weight_map.png",
 ):
     """
     Plot Student-t IRLS weights for sparse inversion centers.
@@ -943,7 +826,7 @@ def plot_student_t_weight_map(
     ax.set_xlabel("Local window offset (ms)")
     ax.set_ylabel("Window center TWT (s)")
     ax.set_title(
-        "Student-t IRLS weight map "
+        "Candidate before global acceptance\nStudent-t IRLS weight map "
         f"(rows: {row_filter.replace('_', ' ')})"
     )
     ax.invert_yaxis()
@@ -978,7 +861,7 @@ def plot_student_t_weight_map(
         ax_status.set_xticklabels(status_names, rotation=90)
         ax_status.tick_params(axis="y", labelleft=False)
         ax_status.grid(False)
-        ax_status.set_title("Status")
+        ax_status.set_title("Candidate before\nglobal acceptance\nStatus", fontsize=8)
 
         if skip_code is not None:
             rejected = skip_code[skip_code < 0]
@@ -1002,6 +885,103 @@ def plot_student_t_weight_map(
     fig.savefig(out_path, dpi=220)
     plt.close(fig)
     return out_path
+
+def plot_candidate_and_final_wavelet_qc(
+    *,
+    t_work,
+    candidate_diagnostics,
+    final_diagnostics,
+    final_source_codes,
+    result_dir,
+):
+    """分开绘制全局验收前的 TV 候选与全部回退后的最终子波 QC。
+
+    输入：t_work 为双程时，shape (N_time,)，单位 s；两个 diagnostics 字典
+    中每个指标均为 shape (N_time,)。峰值位置单位 ms，能量沿用既有 L2 范数
+    （子波振幅单位），质心频率单位 Hz，掩码、旁瓣比、边缘能量比无量纲。
+    final_source_codes 为已有的 {来源名称: 整数编码} 映射，result_dir 为输出目录。
+
+    输出：包含 candidate_qc、final_qc 两个 PNG 路径的字典，无数组输出。
+    数学作用与物理假设：只显示已有诊断值，不重新定义指标、不平滑或填补 NaN，
+    不把候选 valid/reliable 掩码解释为最终模型来源；缺失指标明确标为 unavailable。
+    """
+    t_work = np.asarray(t_work, dtype=float)  # shape: (N_time,)，双程时 s
+    if t_work.ndim != 1 or t_work.size == 0 or not np.all(np.isfinite(t_work)):
+        raise ValueError("t_work 必须是非空有限一维时间轴，单位 s。")
+    for diagnostics in (candidate_diagnostics, final_diagnostics):
+        if not isinstance(diagnostics, dict):
+            raise ValueError("diagnostics 必须是指标字典。")
+        for name, values in diagnostics.items():
+            if values is not None and np.asarray(values).shape != t_work.shape:
+                raise ValueError(f"{name} 必须与 t_work 同为 shape (N_time,)。")
+    if not isinstance(final_source_codes, dict):
+        raise ValueError("final_source_codes 必须是来源名称到整数编码的字典。")
+
+    # 仅指定显示顺序和坐标单位；数值直接来自对应阶段的诊断量。
+    candidate_panels = [
+        ("peak_metric_ms", "TV candidate peak metric", "Peak metric (ms)"),
+        ("energy_l2", "TV candidate energy", "Energy (L2 norm)"),
+        ("valid_mask", "TV candidate valid mask", "Valid (0/1)"),
+        ("reliable_mask", "TV candidate reliable mask", "Reliable (0/1)"),
+        ("centroid_frequency_hz", "TV candidate centroid frequency", "Frequency (Hz)"),
+        ("side_lobe_ratio", "TV candidate side-lobe ratio", "Ratio"),
+        ("edge_energy_ratio", "TV candidate edge-energy ratio", "Ratio"),
+    ]
+    final_panels = [
+        ("peak_metric_ms", "Final peak metric", "Peak metric (ms)"),
+        ("energy_l2", "Final energy", "Energy (L2 norm)"),
+        ("centroid_frequency_hz", "Final centroid frequency", "Frequency (Hz)"),
+        ("source_code", "Final wavelet source", "Source"),
+    ]
+    groups = [
+        ("candidate_qc", "Candidate before global acceptance", candidate_diagnostics,
+         candidate_panels, "fig16_candidate_qc.png"),
+        ("final_qc", "Final after fallback", final_diagnostics,
+         final_panels, "fig17_final_qc.png"),
+    ]
+    result_dir = ensure_dir(result_dir)
+    paths = {}
+    for group_name, stage_title, diagnostics, panels, filename in groups:
+        # axes shape: (指标数,)，所有子图共用同一条双程时轴。
+        fig, axes = plt.subplots(len(panels), 1, figsize=(12, 2.2 * len(panels)), sharex=True)
+        for ax, (name, metric_title, unit_label) in zip(axes, panels):
+            ax.set_title(f"{stage_title}\n{metric_title}", fontsize=10)
+            ax.set_ylabel(unit_label)
+            ax.grid(True, alpha=0.25)
+            values = diagnostics.get(name)
+            if values is None:
+                ax.text(0.5, 0.5, "Unavailable", ha="center", transform=ax.transAxes)
+                continue
+            values = np.asarray(values, dtype=float)  # shape: (N_time,)，不改变诊断值
+            if not np.any(np.isfinite(values)):
+                ax.text(0.5, 0.5, "Unavailable (no finite values)", ha="center", transform=ax.transAxes)
+            if name in ("valid_mask", "reliable_mask", "source_code"):
+                # 掩码及模型来源是离散状态，只用阶梯线显示，不对类别做插值。
+                ax.step(t_work, values, where="mid", linewidth=0.9)
+            else:
+                ax.plot(t_work, values, linewidth=1.0)
+            if name in ("valid_mask", "reliable_mask"):
+                ax.set_yticks([0, 1])
+                ax.set_ylim(-0.1, 1.1)
+            if name == "source_code":
+                if final_source_codes:
+                    source_labels = []
+                    source_ticks = []
+                    for source_name, source_code in final_source_codes.items():
+                        source_labels.append(source_name.replace("_", " "))
+                        source_ticks.append(source_code)
+                    ax.set_yticks(source_ticks)
+                    ax.set_yticklabels(source_labels, fontsize=8)
+                else:
+                    ax.set_ylabel("Source code (labels unavailable)")
+        axes[-1].set_xlabel("TWT (s)")
+        fig.tight_layout()
+        out_path = result_dir / filename
+        fig.savefig(out_path, dpi=200)
+        plt.close(fig)
+        paths[group_name] = out_path
+    return paths
+
 
 def plot_all(
     *,
@@ -1051,14 +1031,18 @@ def plot_all(
     robust_weight_row_filter: str = "all",
     selected_wavelet_times_s=None,
     W_reference_for_wavelet_plots=None,
-    wavelet_reference_label: str = "TVWI direct",
-    wavelet_estimated_label: str = "Final",
+    wavelet_reference_label: str = "TV candidate (before global acceptance)",
+    wavelet_estimated_label: str = "Final (after fallback)",
     wavelet_wiggle_amplitude_scale: float = 0.3,
     center_limit_ms=15.0,
     center_peak_allowed_ms=None,
     causal_peak_allowed_ms=(0.0, 40.0),
     r_time=None,
     w_ricker=None,
+    candidate_diagnostics=None,
+    final_wavelet_source_code=None,
+    w_prior=None,
+    w_rejected_stationary=None,
 ):
     """
     井震标定全流程高等级质量控制 (QC) 系列图件生成器。
@@ -1068,15 +1052,22 @@ def plot_all(
         包括多道波形对比、子波提取矩阵图、二维子波多切片对比、波峰延迟及能量衰减指标等。
 
     【所含内容】：
-        - 生成图 1：多道波形对比
-        - 生成图 2：二维时变子波矩阵伪彩色图 (plot_wavelet_matrix)
-        - 生成图 3：一维代表性子波切片对比图 (plot_wavelet_slices)
-        - 生成图 4：子波延迟包络带检验图 (plot_peak_metric)
-        - 生成图 5：DTW 校正历史
-        - 生成图 6：阶段 CC 柱状验收图
-        - 生成图 7：带红色警戒带的波峰漂移图
-        - 生成图 8：能量、掩码与漂移综合诊断图 (如果数据有效)
-        - 生成图 9：子波质心频率吸收曲线图 (如果数据有效)
+        - 生成图 01：时变反演先验子波 (plot_single_wavelet)
+        - 生成图 02（可选）：被拒绝的平稳候选畸变子波 (plot_single_wavelet)
+        - 生成图 04：二维时变子波矩阵伪彩色图 (plot_wavelet_matrix)
+        - 生成图 05：一维代表性子波切片对比图 (plot_wavelet_slices)
+        - 生成图 06：子波延迟包络带检验图 (plot_peak_metric)
+        - 生成图 07：DTW 校正历史 (plot_dtw_history)
+        - 生成图 08：阶段 CC 柱状验收图 (plot_acceptance_summary)
+        - 生成图 09：带红色警戒带的波峰漂移图 (plot_peak_metric_with_acceptance_band)
+        - 生成图 10：能量、掩码与漂移综合诊断图 (plot_wavelet_energy_and_valid_mask)
+        - 生成图 11：子波质心频率吸收曲线图 (plot_centroid_frequency_vs_time)
+        - 生成图 12：指定时间点子波形态精细对比图 (plot_wavelet_selected_time_comparison)
+        - 生成图 13：时变子波展开面板对比图 (plot_time_varying_wavelet_wiggle_panel)
+        - 生成图 14：Student-t 稳健时变诊断图 (plot_student_t_time_diagnostics)
+        - 生成图 15：Student-t 稳健权重时空热图 (plot_student_t_weight_map)
+        - 生成图 16：验收前候选子波全面质控图 (plot_candidate_and_final_wavelet_qc)
+        - 生成图 17：最终模型质量验收图 (plot_candidate_and_final_wavelet_qc)
 
     【参数含义】：
         result_dir: str/Path, 诊断报告保存的目标文件夹。
@@ -1088,13 +1079,15 @@ def plot_all(
         s_syn_final: np.ndarray, 最终输出的合成记录。
         W_final: np.ndarray, (N_t, N_tau) 最终时变子波矩阵。
         W_est_best: np.ndarray, 时变直接反演产生的子波矩阵。
-        peak_metric_ms: np.ndarray, 子波波峰位移指标数组。
+        peak_metric_ms: np.ndarray, 最终回退后子波的波峰位移指标，shape (N_time,)，ms。
         dt: float, 采样间隔 (秒)。
         alignment: str, 'center' 或 'causal' 对齐模式。
         dtw_history: list, DTW 运行迭代轨迹诊断。
         metrics: dict, 最终量化的质量指标包。
         wavelet_energy: np.ndarray (可选), 子波能量向量。
-        valid_mask: np.ndarray (可选), 有效掩码向量。
+        valid_mask: np.ndarray (可选), 候选直接反演有效掩码，不能解释为最终子波有效性。
+        candidate_diagnostics: dict (可选), 明确以 candidate_ 命名的验收前指标，shape (N_time,)。
+        final_wavelet_source_code: np.ndarray (可选), 回退后最终模型来源编码，shape (N_time,)，无量纲。
         centroid_frequency_hz: np.ndarray (可选), 时变子波质心频率向量。
         selected_wavelet_times_s: list/tuple/np.ndarray (可选), 指定绘制子波切片的目标时间，单位 s。
         W_reference_for_wavelet_plots: np.ndarray (可选), 参考子波矩阵，例如 raw TVWI 或合成数据 W_true。
@@ -1103,33 +1096,52 @@ def plot_all(
         center_limit_ms: float, 限制的偏置值。
         center_peak_allowed_ms: tuple, 中心质控偏置上下限范围。
         causal_peak_allowed_ms: tuple, 因果质控延迟上下限范围。
+        w_prior: np.ndarray (可选), shape (wavelet_length,), 时变反演实际使用的平稳先验子波。
+        w_rejected_stationary: np.ndarray (可选), shape (wavelet_length,), 发生畸变被拒绝的平稳候选子波。
     """
     result_dir = ensure_dir(result_dir)
 
     # 优先展示经过最终评估筛选后的 W_final 矩阵，若未成功通过则回退展示最优反演矩阵 W_est_best
     if W_final is not None and np.asarray(W_final).size > 0:
         W_plot = W_final
-        matrix_title = "Final wavelet matrix"
+        wavelet_stage_title = "Final after fallback"
+        matrix_title = f"{wavelet_stage_title}\nFinal wavelet matrix"
     else:
         W_plot = W_est_best
-        matrix_title = "W_est_best matrix"
+        wavelet_stage_title = "Candidate before global acceptance"
+        matrix_title = f"{wavelet_stage_title}\nTV candidate wavelet matrix"
 
     paths = {}
-    paths["trace_comparison"] = plot_trace_comparison(
-        t_work=t_work,
-        obs_work=obs_work,
-        s_syn_stationary=s_syn_stationary,
-        s_syn_after_dtw=s_syn_after_dtw,
-        s_syn_tv_direct=s_syn_tv_direct,
-        s_syn_final=s_syn_final,
-        result_dir=result_dir,
-    )
+    if w_prior is not None and np.asarray(w_prior).size > 0:
+        paths["prior_wavelet_for_tv"] = plot_single_wavelet(
+            w=w_prior,
+            dt=dt,
+            alignment=alignment,
+            result_dir=result_dir,
+            filename="fig01_prior_wavelet_for_tv.png",
+            title="Prior Wavelet for TV Inversion",
+        )
+    else:
+        paths["prior_wavelet_for_tv"] = None
+
+    if w_rejected_stationary is not None and np.asarray(w_rejected_stationary).size > 0:
+        paths["rejected_stationary_candidate"] = plot_single_wavelet(
+            w=w_rejected_stationary,
+            dt=dt,
+            alignment=alignment,
+            result_dir=result_dir,
+            filename="fig02_rejected_stationary_candidate.png",
+            title="Rejected Stationary Candidate (Fallback Triggered)",
+        )
+    else:
+        paths["rejected_stationary_candidate"] = None
     if s_syn_final is not None and np.asarray(s_syn_final).size > 0:
         paths["obs_vs_final_wiggle"] = plot_obs_vs_final_wiggle(
             t_work=t_work,
             obs_work=obs_work,
             s_syn_final=s_syn_final,
             result_dir=result_dir,
+            filename="fig03_obs_vs_final_wiggle.png",
         )
     else:
         paths["obs_vs_final_wiggle"] = None
@@ -1143,6 +1155,7 @@ def plot_all(
             s_syn_tv_direct=s_syn_tv_direct,
             alignment=alignment,
             result_dir=result_dir,
+            filename="fig03_pure_ricker_vs_obs_vs_tv_wiggle.png",
         )
     else:
         paths["pure_ricker_vs_obs_vs_tv_wiggle"] = None
@@ -1153,6 +1166,7 @@ def plot_all(
         dt=dt,
         alignment=alignment,
         result_dir=result_dir,
+        filename="fig04_W_final_matrix.png",
         title=matrix_title,
     )
     paths["wavelet_slices"] = plot_wavelet_slices(
@@ -1161,6 +1175,8 @@ def plot_all(
         dt=dt,
         alignment=alignment,
         result_dir=result_dir,
+        filename="wavelet_slices.png",
+        title=f"{wavelet_stage_title}\nRepresentative wavelets",
     )
 
     # 新增图 10：指定时间点子波形态对比。
@@ -1177,8 +1193,10 @@ def plot_all(
         alignment=alignment,
         result_dir=result_dir,
         target_times_s=selected_wavelet_times_s,
+        filename="fig12_selected_time_wavelet_shape_comparison.png",
         est_label=wavelet_estimated_label,
         reference_label=wavelet_reference_label,
+        title=f"{wavelet_stage_title}\nCandidate before global acceptance: selected-time comparison",
         valid_mask=valid_mask,
         reliable_mask=reliable_mask,
         fallback_mask=fallback_mask,
@@ -1199,8 +1217,10 @@ def plot_all(
         alignment=alignment,
         result_dir=result_dir,
         target_times_s=selected_wavelet_times_s,
+        filename="fig13_time_varying_wavelet_wiggle_panel.png",
         est_label=wavelet_estimated_label,
         reference_label=wavelet_reference_label,
+        title=f"{wavelet_stage_title}\nCandidate before global acceptance: wavelet wiggle comparison",
         amplitude_scale=wavelet_wiggle_amplitude_scale,
         valid_mask=valid_mask,
         reliable_mask=reliable_mask,
@@ -1217,32 +1237,43 @@ def plot_all(
         peak_metric_ms=peak_metric_ms,
         alignment=alignment,
         result_dir=result_dir,
+        filename="fig06_peak_metric.png",
         center_limit_ms=center_limit_ms,
         causal_peak_allowed_ms=causal_peak_allowed_ms,
     )
     paths["dtw_history"] = plot_dtw_history(
         dtw_history=dtw_history,
         result_dir=result_dir,
+        filename="fig07_dtw_history.png",
     )
     paths["acceptance_summary"] = plot_acceptance_summary(
         metrics=metrics,
         result_dir=result_dir,
+        filename="fig08_acceptance_summary.png",
     )
     paths["peak_metric_acceptance_band"] = plot_peak_metric_with_acceptance_band(
         t_work=t_work,
         peak_metric_ms=peak_metric_ms,
         alignment=alignment,
         result_dir=result_dir,
+        filename="fig09_peak_metric_with_acceptance_band.png",
         center_peak_allowed_ms=center_peak_allowed_ms,
         causal_peak_allowed_ms=causal_peak_allowed_ms,
     )
-    if wavelet_energy is not None and valid_mask is not None:
+    # 旧 fig08 也必须使用同一候选阶段的能量、掩码和峰值，避免与 final 混画。
+    if candidate_diagnostics is None:
+        candidate_diagnostics = {}
+    candidate_energy = candidate_diagnostics.get("candidate_wavelet_energy_l2")
+    candidate_valid = candidate_diagnostics.get("candidate_inversion_valid_mask")
+    candidate_peak = candidate_diagnostics.get("candidate_peak_metric_ms")
+    if candidate_energy is not None and candidate_valid is not None and candidate_peak is not None:
         paths["wavelet_energy_valid_mask"] = plot_wavelet_energy_and_valid_mask(
             t_work=t_work,
-            wavelet_energy=wavelet_energy,
-            valid_mask=valid_mask,
-            peak_metric_ms=peak_metric_ms,
+            wavelet_energy=candidate_energy,
+            valid_mask=candidate_valid,
+            peak_metric_ms=candidate_peak,
             result_dir=result_dir,
+            filename="fig10_wavelet_energy_and_valid_mask.png",
         )
     else:
         paths["wavelet_energy_valid_mask"] = None
@@ -1251,9 +1282,34 @@ def plot_all(
             t_work=t_work,
             centroid_frequency_hz=centroid_frequency_hz,
             result_dir=result_dir,
+            filename="fig11_centroid_frequency_vs_time.png",
         )
     else:
         paths["centroid_frequency"] = None
+
+    # 两组指标均为 shape (N_time,)，只传递已有诊断，不参与验收或正演。
+    candidate_qc_for_plot = {
+        "peak_metric_ms": candidate_peak,
+        "energy_l2": candidate_energy,
+        "valid_mask": candidate_valid,
+        "reliable_mask": candidate_diagnostics.get("candidate_reliable_mask"),
+        "centroid_frequency_hz": candidate_diagnostics.get("candidate_centroid_frequency_hz"),
+        "side_lobe_ratio": candidate_diagnostics.get("candidate_side_lobe_ratio"),
+        "edge_energy_ratio": candidate_diagnostics.get("candidate_edge_energy_ratio"),
+    }
+    final_qc_for_plot = {
+        "peak_metric_ms": peak_metric_ms,
+        "energy_l2": wavelet_energy,
+        "centroid_frequency_hz": centroid_frequency_hz,
+        "source_code": final_wavelet_source_code,
+    }
+    paths.update(plot_candidate_and_final_wavelet_qc(
+        t_work=t_work,
+        candidate_diagnostics=candidate_qc_for_plot,
+        final_diagnostics=final_qc_for_plot,
+        final_source_codes=metrics.get("final_wavelet_source_codes", {}),
+        result_dir=result_dir,
+    ))
 
     paths["student_t_time_diagnostics"] = plot_student_t_time_diagnostics(
         t_work=t_work,
@@ -1272,6 +1328,7 @@ def plot_all(
         robust_scale_floor=robust_scale_floor,
         outlier_weight_threshold=robust_outlier_weight_threshold,
         result_dir=result_dir,
+        filename="fig14_student_t_time_diagnostics.png",
     )
 
     paths["student_t_weight_map"] = plot_student_t_weight_map(
@@ -1286,5 +1343,6 @@ def plot_all(
         skip_code=robust_weight_skip_code,
         row_filter=robust_weight_row_filter,
         result_dir=result_dir,
+        filename="fig15_student_t_weight_map.png",
     )
     return paths

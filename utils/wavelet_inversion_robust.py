@@ -801,6 +801,9 @@ def stationary_wavelet_inversion(
     mu1: float = 0.2, # 子波能量惩罚项
     mu2: float = 2.0,# 子波二阶导数惩罚项
     mu_dc: float = 10.0,# 非零均值惩罚，抑制低频漂移和非零均值
+    mu_edge: float = 0.0,# 子波两端边界衰减惩罚项
+    edge_fraction: float = 0.12,# 边界衰减时窗两端所占比例
+    edge_taper: str = "cosine",# 边缘衰减窗形式
     damping_ratio: float = 3e-3,# SVD 阻尼比例，越大越稳定但越模糊
     svd_cutoff_ratio: float = 1e-3,
     peak_lock: bool = True,
@@ -849,19 +852,36 @@ def stationary_wavelet_inversion(
     s_obs = s_obs - np.mean(s_obs)
     data_scale = max(np.sum(s_obs ** 2) / N, 1e-12)
 
-    A_aug = np.vstack([
+    A_blocks = [
         R,
         np.sqrt(mu1 * data_scale) * I,
         np.sqrt(mu2 * data_scale) * D,
         np.sqrt(mu_dc * data_scale) * C_dc,
-    ])
+    ]
 
-    b_aug = np.concatenate([
+    b_blocks = [
         s_obs,
         np.zeros(wavelet_length),
         np.zeros(wavelet_length - 2),
         np.zeros(1),
-    ])
+    ]
+
+    # 当启用边缘惩罚时，追加平滑衰减项 ||E @ w||_2^2
+    # 抑制平稳子波两端边界系数由于自由度过多而吸收残余误差产生的虚假振荡
+    if mu_edge > 0:
+        edge_weights = build_edge_penalty_weights(
+            wavelet_length=wavelet_length,
+            edge_fraction=edge_fraction,
+            taper=edge_taper,
+        )
+        # E_edge 为对角阵，shape=(wavelet_length, wavelet_length)
+        # 与 mu1/mu2/mu_dc 保持同一 data_scale 能量缩放基准
+        E_edge = np.diag(edge_weights)
+        A_blocks.append(np.sqrt(mu_edge * data_scale) * E_edge)
+        b_blocks.append(np.zeros(wavelet_length))
+
+    A_aug = np.vstack(A_blocks)
+    b_aug = np.concatenate(b_blocks)
 
     w = _safe_svd_solve(
         A=A_aug,
@@ -1464,6 +1484,9 @@ def time_varying_wavelet_inversion(
             mu1=max(mu1, 0.2),
             mu2=max(mu2, 2.0),
             mu_dc=mu_dc,
+            mu_edge=mu_edge,
+            edge_fraction=edge_fraction,
+            edge_taper=edge_taper,
             damping_ratio=damping_ratio,
             svd_cutoff_ratio=svd_cutoff_ratio,
             peak_lock=False,

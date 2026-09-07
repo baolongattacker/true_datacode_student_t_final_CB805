@@ -152,9 +152,13 @@ def run_tv_wavelet_stage(
     else:
         raise ValueError("alignment 必须是 'center' 或 'causal'。")
 
+    strict_prior_sources = {
+        "strict_stationary_center_after_DTW",
+        "statistical_constant_phase_prior_after_DTW",
+    }
     mu_prior = (
         mu_prior_strict
-        if w_prior_source == "strict_stationary_center_after_DTW"
+        if w_prior_source in strict_prior_sources
         else mu_prior_fallback
     )
 

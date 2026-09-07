@@ -35,7 +35,7 @@ def plot_wavelet_matrix(
     dt,
     alignment: str,
     result_dir,
-    filename: str = "fig02_W_final_matrix.png",
+    filename: str = "fig04_W_final_matrix.png",
     title: str = "Time-varying wavelet matrix",
 ):
     result_dir = ensure_dir(result_dir)
@@ -81,7 +81,7 @@ def plot_wavelet_slices(
     dt,
     alignment: str,
     result_dir,
-    filename: str = "fig03_wavelet_slices.png",
+    filename: str = "fig05_wavelet_slices.png",
     title: str = "Representative wavelets",
     time_fractions=(0.1, 0.3, 0.5, 0.7, 0.9),
 ):
@@ -127,7 +127,7 @@ def plot_peak_metric(
     peak_metric_ms,
     alignment: str,
     result_dir,
-    filename: str = "fig04_peak_metric.png",
+    filename: str = "fig06_peak_metric.png",
     center_limit_ms: float = 15.0,
     causal_peak_allowed_ms=(0.0, 40.0),
 ):
@@ -371,7 +371,7 @@ def plot_wavelet_selected_time_comparison(
     result_dir,
     W_reference=None,
     target_times_s=None,
-    filename: str = "fig10_selected_time_wavelet_shape_comparison.png",
+    filename: str = "fig12_selected_time_wavelet_shape_comparison.png",
     title: str = "Selected-Time Wavelet Shape Comparison",
     est_label: str = "Final",
     reference_label: str = "TVWI",
@@ -591,7 +591,7 @@ def plot_time_varying_wavelet_wiggle_panel(
     result_dir,
     W_reference=None,
     target_times_s=None,
-    filename: str = "fig11_time_varying_wavelet_wiggle_panel.png",
+    filename: str = "fig13_time_varying_wavelet_wiggle_panel.png",
     title: str = "Time-Varying Wavelet",
     est_label: str = "Final",
     reference_label: str = "TVWI",
