@@ -135,7 +135,15 @@ def run_tv_wavelet_stage(
     store_weight_map: bool = False,
     acceptance_config: TvAcceptanceConfig | None = None,
     verbose: bool = True,
+    store_stage_wavelets: bool = False,
 ) -> TvWaveletResult:
+    """固定反射系数反演 TV 子波，沿用原有极性选择和物理 QC。
+
+    r_time、obs_work 为等长 shape=(N,) 的反射系数和观测振幅；w_prior 为
+    shape=(L,) 或 (N,L) 的先验子波，dt 单位 s，峰值阈值单位 ms。
+    输出 TvWaveletResult 的 W_raw/W_best 为 shape=(N,L)，振幅单位继承输入。
+    store_stage_wavelets 仅将反演内部快照带入 diag，不改变数学目标或数据流。
+    """
     r_time = np.asarray(r_time, dtype=float).ravel()
     obs_work = np.asarray(obs_work, dtype=float).ravel()
     w_prior = np.asarray(w_prior, dtype=float)
@@ -220,6 +228,7 @@ def run_tv_wavelet_stage(
             robust_outlier_weight_threshold
         ),
         store_weight_map=store_weight_map,
+        store_stage_wavelets=store_stage_wavelets,
         return_diagnostics=True,
         verbose=verbose,
     )

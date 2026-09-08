@@ -1,0 +1,332 @@
+{
+  "valid_mask": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "residual_median": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "skip_code": {
+    "shape": [
+      2546
+    ],
+    "dtype": "int64"
+  },
+  "effective_rank": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "condition_ratio": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "peak_shift_raw_samples": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "r_energy": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "s_energy": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "energy_threshold": 0.01162266844688798,
+  "estimate_step_samples": 20,
+  "time_smooth_sigma": 29.99999999999997,
+  "wavelet_alignment": "center",
+  "loss_type": "student_t",
+  "mu_edge": 1.0,
+  "edge_penalty_active": true,
+  "edge_fraction": 0.12,
+  "edge_taper": "cosine",
+  "edge_penalty_weights": {
+    "shape": [
+      129
+    ],
+    "dtype": "float64"
+  },
+  "student_objective_includes_edge": true,
+  "candidate_wavelet_origin_code": {
+    "shape": [
+      2546
+    ],
+    "dtype": "int8"
+  },
+  "candidate_inverted_mask": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "candidate_interpolated_mask": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "candidate_extrapolated_mask": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "candidate_prior_fill_mask": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "candidate_unavailable_mask": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "candidate_origin_scope": "pre_gaussian_fill_lineage",
+  "student_nu": 10.0,
+  "irls_max_iter": 12,
+  "irls_tol": 0.0003,
+  "robust_scale_mode": "local_mad",
+  "robust_scale_floor_ratio": 0.05,
+  "robust_scale_floor": 0.019535727880698905,
+  "robust_weight_floor": 0.001,
+  "min_effective_sample_ratio": 0.3,
+  "robust_fallback": "l2",
+  "robust_outlier_weight_threshold": 0.5,
+  "store_weight_map": true,
+  "robust_sigma": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "irls_iterations": {
+    "shape": [
+      2546
+    ],
+    "dtype": "int64"
+  },
+  "irls_converged": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "irls_step_converged": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "post_qc_valid": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "robust_code": {
+    "shape": [
+      2546
+    ],
+    "dtype": "int64"
+  },
+  "robust_attempted": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "robust_solution_used": {
+    "shape": [
+      2546
+    ],
+    "dtype": "bool"
+  },
+  "weight_mean": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "weight_min": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "outlier_fraction": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "kish_size": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "kish_ratio": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "effective_sample_size": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "effective_sample_ratio": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "student_objective_initial": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "student_objective_final": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "student_objective_relative_decrease": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "robust_center_indices": {
+    "shape": [
+      87
+    ],
+    "dtype": "int64"
+  },
+  "robust_weight_map": {
+    "shape": [
+      87,
+      387
+    ],
+    "dtype": "float32"
+  },
+  "robust_weight_center_indices": {
+    "shape": [
+      87
+    ],
+    "dtype": "int64"
+  },
+  "robust_window_offsets_samples": {
+    "shape": [
+      387
+    ],
+    "dtype": "int64"
+  },
+  "robust_weight_solution_used": {
+    "shape": [
+      87
+    ],
+    "dtype": "bool"
+  },
+  "robust_weight_post_qc_valid": {
+    "shape": [
+      87
+    ],
+    "dtype": "bool"
+  },
+  "robust_weight_skip_code": {
+    "shape": [
+      87
+    ],
+    "dtype": "int64"
+  },
+  "n_robust_attempted": 87,
+  "n_robust_solution_used": 87,
+  "n_robust_converged": 87,
+  "peak_allowed_samples": [
+    -15,
+    15
+  ],
+  "n_valid": 70,
+  "n_attempted": 108,
+  "qc_energy": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "qc_peak_shift_samples": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "qc_peak_position_samples": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "qc_dc_ratio": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "qc_centroid_freq": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "qc_bandwidth": {
+    "shape": [
+      2546
+    ],
+    "dtype": "float64"
+  },
+  "store_stage_wavelets": true,
+  "W_direct_centers": {
+    "shape": [
+      2546,
+      129
+    ],
+    "dtype": "float64"
+  },
+  "W_pre_gaussian": {
+    "shape": [
+      2546,
+      129
+    ],
+    "dtype": "float64"
+  },
+  "W_post_gaussian": {
+    "shape": [
+      2546,
+      129
+    ],
+    "dtype": "float64"
+  }
+}

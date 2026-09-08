@@ -1633,6 +1633,16 @@ def _save_and_plot_results(
     if extended_wavelet_diagnostics is None:
         extended_wavelet_diagnostics = {}
 
+    if tv.diag.get("store_stage_wavelets", False):
+        # 三个反演快照均为 shape=(N_time, N_wavelet)，只送入结果包。
+        # direct_centers 的 NaN 行由 shape=(N_time,) 的 tv_valid_mask 区分。
+        for stage_name in ("W_direct_centers", "W_pre_gaussian", "W_post_gaussian"):
+            extended_wavelet_diagnostics[stage_name] = tv.diag[stage_name]
+        # hybrid 只能在主流程构造后保存；它是全局验收前的候选，不等同于 W_final。
+        extended_wavelet_diagnostics["W_final_hybrid"] = (
+            extended_wavelet_diagnostics["tv_hybrid_W"]
+        )
+
     stationary_candidate = after_prior.stationary_candidate_result
     stationary_candidate_w = (
         stationary_candidate.w
@@ -2179,6 +2189,7 @@ def _main_impl(config_path: str):
             "store_weight_map",
             False,
         ),
+        store_stage_wavelets=getattr(cfg.tv_wavelet, "store_stage_wavelets", False),
         acceptance_config=_build_tv_acceptance_config(cfg),
         verbose=True,
     )

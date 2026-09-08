@@ -1,0 +1,17 @@
+test_candidate_origin_masks_are_mutually_exclusive (test_edge_penalty.CandidateOriginTest.test_candidate_origin_masks_are_mutually_exclusive) ... ok
+test_boundary_peak_mask (test_edge_penalty.DiagnosticSemanticsTest.test_boundary_peak_mask) ... ok
+test_final_source_codes_keep_blend_separate (test_edge_penalty.DiagnosticSemanticsTest.test_final_source_codes_keep_blend_separate) ... ok
+test_longest_gap_uses_center_step_not_seismic_dt (test_edge_penalty.DiagnosticSemanticsTest.test_longest_gap_uses_center_step_not_seismic_dt) ... ok
+test_stationary_rejection_keeps_unlocked_candidate_diagnostics (test_edge_penalty.DiagnosticSemanticsTest.test_stationary_rejection_keeps_unlocked_candidate_diagnostics) ... ok
+test_augmented_edge_block_matches_regularization_value (test_edge_penalty.EdgePenaltyObjectiveTest.test_augmented_edge_block_matches_regularization_value) ... ok
+test_l2_and_student_t_paths_both_use_active_edge_penalty (test_edge_penalty.EdgePenaltyObjectiveTest.test_l2_and_student_t_paths_both_use_active_edge_penalty) ... ok
+test_l2_edge_norm_decreases_for_fixed_small_problem (test_edge_penalty.EdgePenaltyObjectiveTest.test_l2_edge_norm_decreases_for_fixed_small_problem) ... ok
+test_mu_edge_zero_never_builds_edge_weights (test_edge_penalty.EdgePenaltyObjectiveTest.test_mu_edge_zero_never_builds_edge_weights) ... ok
+test_student_t_objective_contains_same_edge_value (test_edge_penalty.EdgePenaltyObjectiveTest.test_student_t_objective_contains_same_edge_value) ... ok
+test_invalid_edge_parameters_fail_explicitly (test_edge_penalty.EdgePenaltyWeightTest.test_invalid_edge_parameters_fail_explicitly) ... ok
+test_odd_and_even_lengths_are_symmetric (test_edge_penalty.EdgePenaltyWeightTest.test_odd_and_even_lengths_are_symmetric) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.031s
+
+OK

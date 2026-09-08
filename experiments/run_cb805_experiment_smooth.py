@@ -21,7 +21,7 @@ def _default_config_path() -> str:
     return str(
         Path(__file__).resolve().parents[1]
         / "configs"
-        / "cb805_center_student_t_L129_v01.yaml"
+        / "A00_reduced.yaml"
     )
 print("__file__ =", __file__)
 print("resolve =", Path(__file__).resolve())

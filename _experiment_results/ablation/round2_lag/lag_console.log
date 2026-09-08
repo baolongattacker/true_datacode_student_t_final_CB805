@@ -1,0 +1,1541 @@
+[Matrix] running configs\ablation\L00_reduced_baseline.yaml
+============================================================
+Real-data experiment (CB805): cb805_ablation_L00_reduced_baseline
+alignment = center
+result_dir = _experiment_results/ablation/round2_lag/L00_reduced_baseline
+============================================================
+  [Ricker prior] use fixed center Ricker before DTW
+  [Ricker prior] f_dom = 28.32 Hz
+  [Ricker prior] wavelet_length_pts = 129
+  [Ricker prior] CC = 0.103651
+[Initial prior] source = center_ricker_for_DTW
+[Initial prior] CC = 0.103651
+  [DTW-iter] phased candidate DTW begins
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.39 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1037 / 0.1191
+  [DTW-envelope] Env before/after = -0.0358 / -0.0530
+  [DTW-envelope] maxlag after = 0.1234, lag = -2.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.40 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1191 / 0.1277
+  [DTW-envelope] Env before/after = -0.0530 / -0.0688
+  [DTW-envelope] maxlag after = 0.1277, lag = 0.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-iter] phase envelope: accepted 2/2
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.77 ms
+  [DTW-waveform] CC before/after = 0.1277 / 0.1385
+  [DTW-waveform] Env before/after = -0.0688 / -0.0667
+  [DTW-waveform] maxlag after = 0.1385, lag = 0.0 ms
+  [DTW-waveform] TWT max change = 0.93 ms
+  [DTW-waveform] accept = True
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.71 ms
+  [DTW-waveform] CC before/after = 0.1385 / 0.1485
+  [DTW-waveform] Env before/after = -0.0667 / -0.0649
+  [DTW-waveform] maxlag after = 0.1487, lag = -1.0 ms
+  [DTW-waveform] TWT max change = 0.86 ms
+  [DTW-waveform] accept = True
+  [DTW-iter] phase waveform: accepted 2/2
+  [DTW-iter] keep fixed initial wavelet before fine DTW
+  [DTW-fine] window = 9 samples
+  [DTW-fine] alpha candidates = [0.0, 0.01, 0.02, 0.04, 0.06]
+  [DTW-fine] best alpha/sign = 0.060 / +1
+  [DTW-fine] shift range = -0.48 ~ 0.30 ms
+  [DTW-fine] CC before/after = 0.1485 / 0.1554
+  [DTW-fine] Env before/after = -0.0649 / -0.0648
+  [DTW-fine] maxlag after = 0.1555, lag = -1.0 ms
+  [DTW-fine] TWT max change = 0.30 ms
+  [DTW-fine] accept = True
+  [DTW-iter] phase fine: accepted 1/1
+  [Constant-phase prior] statistical amplitude spectrum + constant phase search
+  [Constant-phase prior] spectral peak = 28.00 Hz
+  [Constant-phase prior] auto band = 5.00 - 62.00 Hz
+  [Constant-phase prior] phase = -3.0 deg, peak = +0.0 ms
+  [Constant-phase prior] CC = 0.157126, Ricker CC = 0.155403
+[DTW] CC = 0.155403
+[After-DTW prior] source = statistical_constant_phase_prior_after_DTW
+[After-DTW prior] CC = 0.157126
+
+--- Step 2: 固定 r_work_final，反演时变子波 ---
+========== Robust time-varying wavelet inversion ==========
+  N_time                = 2546
+  dt                    = 0.001000 s
+  wavelet_length        = 129
+  data_window_length    = 387
+  estimate_step_samples = 20
+  estimate_step_ms      = 20.00 ms
+  mu1                   = 0.2
+  mu2                   = 6.0
+  mu_dc                 = 0.0
+  mu_prior              = 1.0
+  mu_time               = 8.0
+  mu_edge               = 1.0
+  edge_fraction         = 0.12
+  edge_taper            = cosine
+  energy_threshold      = 1.162267e-02
+  damping_ratio         = 0.0
+  svd_cutoff_ratio      = 0.001
+  min_effective_rank    = 16
+  max_peak_shift        = 15 samples
+  time_smooth_sigma     = 30.00 samples
+  wavelet_smooth_sigma  = 4.00 samples
+  has_wavelet_prior     = True
+  loss_type             = student_t
+  student_nu            = 10.0
+  irls_max_iter         = 12
+  irls_tol              = 0.0003
+  robust_scale_floor    = 1.953573e-02
+  robust_weight_floor   = 0.001
+  min_effective_ratio   = 0.3
+  outlier_weight_thresh = 0.5
+  store_weight_map      = True
+  attempted windows      = 108
+  valid inverted centers = 70 / 108
+  skipped low energy     = 21
+  skipped ill-cond       = 0
+  skipped NaN/Inf        = 0
+  skipped peak shift     = 17
+  skipped amp jump       = 0
+  robust attempted       = 87
+  irls_step_converged    = 87
+  robust solution used   = 87
+  post_qc_valid (robust) = 70
+  robust fallback to L2  = 0
+  median robust sigma    = 3.245219e-01
+  median weight mean     = 0.9173
+  median effective ratio = 0.9881
+  median qc_dc_ratio     = 1.614e-17
+  median centroid_freq   = 27.04 Hz
+============================================================
+  wavelet_alignment     = center
+
+--- Step 3: W_est 直接合成与质量验收 ---
+  use_negative_W      = False
+  CC_stationary       = 0.1571
+  CC_after_DTW        = 0.1554
+  CC_tv_direct        = 0.4356
+  CC gain vs DTW      = +0.2802
+  CC gain vs stat     = +0.2785
+  Maxlag CC           = 0.4374, lag=-1.0 ms
+  Envelope CC         = 0.0277, gain vs stat=+0.0808
+  Peak metric p10/med/p90 = -2.00 / -1.00 / 64.00 ms
+  wavelet_alignment   = center
+  valid_ratio         = 0.6481481481481481
+  numerical_pass      = True
+  physical_pass       = False
+  W_est pass gate     = False
+[Pre-acceptance hybrid] enabled = True
+[Pre-acceptance hybrid] short gap limit = 60.0 ms
+[Pre-acceptance hybrid] strict reliable sample ratio = 0.016
+[Pre-acceptance hybrid] valid direct centers = 70
+[Pre-acceptance hybrid] strict reliable centers = 42 (0.600)
+[Pre-acceptance hybrid] gray admissible centers = 20 (0.286)
+[Pre-acceptance hybrid] total admissible centers = 62 (0.886)
+[Pre-acceptance hybrid] rejected direct centers = 8 (0.114)
+[Pre-acceptance hybrid] TV support sample ratio = 0.480
+[Pre-acceptance hybrid] short gap ratio = 0.456
+[Pre-acceptance hybrid] hard prior ratio = 0.520
+[Pre-acceptance hybrid] blend ratio = 0.094
+[Pre-acceptance hybrid] raw CC = 0.435644
+[Pre-acceptance hybrid] hybrid CC = 0.287986
+[Pre-acceptance hybrid] raw pass = False
+[Pre-acceptance hybrid] hybrid pass = True
+[Pre-acceptance hybrid] reasons = []
+[Local fallback] enabled = True
+[Local fallback] hard_ratio      = 0.520
+[Local fallback] effective_ratio = 0.529
+[Candidate QC] reliable_ratio  = 0.016
+[Candidate QC] shape_bad_ratio = 0.352
+[Local fallback] shape_ratio     = 0.352
+[Pre-acceptance hybrid] decisive acceptance pass = True; reasons = []
+>>> NEW plot_pure_ricker_vs_obs_vs_tv_wiggle <<<
+[Selected-time QC] fig10
+  target=0.835s selected=0.835s idx=255 raw_idx=255 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.685 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.513s selected=1.513s idx=933 raw_idx=933 direct_inverted=1 strict_reliable=1 admissible_direct=1 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-2.000 wavelet_energy_norm=0.735 side_lobe_ratio=0.655 edge_energy_ratio=0.100
+  target=2.192s selected=2.192s idx=1612 raw_idx=1612 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=0.000 wavelet_energy_norm=0.832 side_lobe_ratio=0.603 edge_energy_ratio=0.062
+  target=2.870s selected=2.870s idx=2290 raw_idx=2290 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.685 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+[Selected-time QC] fig11
+  target=0.835s selected=0.835s idx=255 raw_idx=255 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.685 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.089s selected=1.089s idx=509 raw_idx=509 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.685 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.343s selected=1.395s idx=815 raw_idx=763 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-1.000 wavelet_energy_norm=0.947 side_lobe_ratio=0.750 edge_energy_ratio=0.128
+  target=1.598s selected=1.598s idx=1018 raw_idx=1018 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-1.000 wavelet_energy_norm=0.665 side_lobe_ratio=0.611 edge_energy_ratio=0.093
+  target=1.852s selected=1.852s idx=1272 raw_idx=1272 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.685 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=2.107s selected=2.107s idx=1527 raw_idx=1527 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=0.833 final_alpha=0.833 peak_metric_ms=0.000 wavelet_energy_norm=0.696 side_lobe_ratio=0.569 edge_energy_ratio=0.051
+  target=2.361s selected=2.361s idx=1781 raw_idx=1781 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=0.000 wavelet_energy_norm=0.900 side_lobe_ratio=0.542 edge_energy_ratio=0.034
+  target=2.616s selected=2.616s idx=2036 raw_idx=2036 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-1.000 wavelet_energy_norm=0.976 side_lobe_ratio=0.701 edge_energy_ratio=0.016
+  target=2.870s selected=2.870s idx=2290 raw_idx=2290 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.685 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+
+[Final]
+  CC_initial_ricker_before_DTW: 0.1036507646943142
+  CC_stationary: 0.1571262285067304
+  CC_after_DTW: 0.15540264622905386
+  CC_prior_after_DTW: 0.1571262285067304
+  CC_tv_direct: 0.28798602430869386
+  W_pass: True
+  q_pass: False
+  CC_Q: None
+  Q_global: None
+  CC_final: 0.28798602430869386
+  final_model_type: W_est_best_no_Q
+  best_lag_ms: 0.0
+  peak_metric_p10: -1.0000000000000009
+  peak_metric_med: 0.0
+  peak_metric_p90: 0.0
+  peak_abs_p90: 1.0000000000000009
+  valid_ratio: 0.6481481481481481
+  use_negative_W: False
+  acceptance_reasons: []
+  q_reason: q_disabled
+  raw_tv_peak_metric_p10: -2.0000000000000018
+  raw_tv_peak_metric_med: -1.0000000000000009
+  raw_tv_peak_metric_p90: 64.00000000000006
+  hybrid_direct_reliable_ratio_scope: strict_reliable_samples_over_all_time_samples
+  hybrid_valid_direct_count: 70
+  hybrid_strict_reliable_direct_count: 42
+  hybrid_admissible_direct_count: 62
+  hybrid_gray_zone_direct_count: 20
+  hybrid_rejected_direct_count: 8
+  hybrid_strict_reliable_center_ratio: 0.6
+  hybrid_admissible_direct_center_ratio: 0.8857142857142857
+  hybrid_gray_zone_center_ratio: 0.2857142857142857
+  hybrid_rejected_direct_center_ratio: 0.11428571428571428
+  hybrid_strict_reliable_sample_ratio: 0.016496465043205028
+  hybrid_admissible_direct_sample_ratio: 0.024351924587588374
+  hybrid_gray_zone_sample_ratio: 0.007855459544383346
+  hybrid_rejected_direct_sample_ratio: 0.003142183817753339
+  raw_tv_W_pass: False
+  raw_tv_CC_direct: 0.43564441377134566
+  raw_tv_best_lag_ms: -1.0000000000000009
+  raw_tv_peak_abs_p90: 64.00000000000006
+  raw_tv_acceptance_reasons: ['center_peak_p90_shift_too_large', 'center_peak_violation_ratio_too_large']
+  hybrid_tv_W_pass: True
+  hybrid_tv_acceptance_reasons: []
+  hybrid_tv_CC_direct: 0.28798602430869386
+  hybrid_tv_env_cc: 0.01703209309431216
+  hybrid_tv_best_lag_ms: 0.0
+  hybrid_tv_peak_p10_ms: -1.0000000000000009
+  hybrid_tv_peak_median_ms: 0.0
+  hybrid_tv_peak_p90_ms: 0.0
+  hybrid_tv_peak_abs_p90_ms: 1.0000000000000009
+  hybrid_tv_peak_violation_ratio: 0.0
+  hybrid_short_gap_limit_ms: 60.0
+  hybrid_direct_reliable_ratio: 0.016496465043205028
+  hybrid_short_gap_ratio: 0.4556166535742341
+  hybrid_hard_prior_ratio: 0.5200314218381775
+  hybrid_blend_ratio: 0.09426551453260015
+  hybrid_tv_support_ratio: 0.4799685781618225
+  hybrid_candidate_scope: local_repair_before_global_acceptance
+  residual_median_p90: 0.04510416664258942
+  residual_median_med: -0.0004982154375303013
+  tv_loss_type: student_t
+  tv_student_nu: 10.0
+  tv_robust_fallback: l2
+  tv_irls_max_iter: 12
+  tv_irls_tol: 0.0003
+  edge_penalty_enabled: True
+  mu_edge_configured: 1.0
+  mu_edge_effective: 1.0
+  edge_penalty_fraction: 0.12
+  edge_penalty_taper: cosine
+  student_objective_includes_edge: True
+  stationary_candidate_accepted: False
+  stationary_candidate_peak_ms: nan
+  stationary_rejection_code: not_attempted_constant_phase_policy
+  stationary_rejection_reason: after-DTW prior 使用 statistical constant-phase policy，未运行 free-form stationary LS candidate。
+  stationary_prior_source: statistical_constant_phase_prior_after_DTW
+  prior_source: statistical_constant_phase_prior_after_DTW
+  CC_selected_prior_after_DTW: 0.1571262285067304
+  stationary_prior_method_configured: constant_phase
+  constant_phase_candidate_accepted: True
+  constant_phase_deg: -3.0
+  constant_phase_spectral_peak_hz: 27.999999999999975
+  constant_phase_band_low_hz: 4.999999999999996
+  constant_phase_band_high_hz: 61.99999999999994
+  constant_phase_candidate_cc: 0.1571262285067304
+  constant_phase_ricker_cc: 0.15540264622905386
+  constant_phase_rejection_reason: 
+  CC_stationary_raw: nan
+  CC_stationary_raw_env: nan
+  CC_stationary_raw_scope: unlocked_candidate_before_ricker_fallback
+  CC_prior_after_DTW_scope: selected_prior_after_DTW
+  candidate_valid_ratio: 0.6481481481481481
+  candidate_best_lag_ms: -1.0000000000000009
+  candidate_peak_metric_p10: -2.0000000000000018
+  candidate_peak_metric_med: -1.0000000000000009
+  candidate_peak_metric_p90: 64.00000000000006
+  candidate_peak_abs_p90: 64.00000000000006
+  local_fallback_enabled: True
+  local_fallback_ratio: 0.5294273279830994
+  local_fallback_hard_ratio: 0.5200314218381775
+  local_fallback_effective_ratio: 0.5294273279830994
+  fallback_by_shape_ratio: 0.3519245875883739
+  candidate_shape_fallback_request_ratio: 0.3519245875883739
+  candidate_shape_fallback_raw_ratio: 0.3519245875883739
+  candidate_reliable_ratio: 0.016496465043205028
+  candidate_reliable_scope: direct_inversion_and_peak_energy_shape_qc
+  final_reliable_ratio: 0.8609583660644148
+  final_reliable_scope: shape_peak_energy_only; does_not_mean_direct_inversion
+  side_lobe_p90: 1.2820982943249986
+  edge_energy_p90: 0.23227629875950612
+  candidate_side_lobe_p50: 0.7542116922788932
+  candidate_side_lobe_p90: 1.2820982943249986
+  candidate_side_lobe_max: 1.2820982943249986
+  candidate_edge_energy_p50: 0.1154734917209306
+  candidate_edge_energy_p90: 0.23227629875950612
+  candidate_edge_energy_max: 0.23227629875950612
+  final_side_lobe_p50: 0.4379574936754552
+  final_side_lobe_p90: 0.8022250357311038
+  final_side_lobe_max: 0.8856962602005525
+  final_edge_energy_p50: 0.00041701885192026
+  final_edge_energy_p90: 0.12757175782331592
+  final_edge_energy_max: 0.18237526063598697
+  candidate_boundary_peak_fraction: 0.19992144540455617
+  final_boundary_peak_fraction: 0.0
+  boundary_peak_fraction_parameter: 0.12
+  candidate_peak_violation_ratio: 0.324037706205813
+  candidate_center_step_ms: 20.000000000000018
+  longest_candidate_invalid_gap_ms: 399.9999999999999
+  longest_candidate_unreliable_gap_ms: 640.0
+  candidate_temporal_difference_energy: 7.207190019057701e-05
+  final_temporal_difference_energy: 0.0036244305798363093
+  irls_iterations_median: 3.0
+  irls_iterations_max: 5
+  candidate_origin_scope: pre_gaussian_fill_lineage
+  candidate_origin_codes: {'direct_inverted_center': 0, 'linear_interpolated': 1, 'endpoint_extrapolated': 2, 'prior_fill_when_no_valid_center': 3, 'unavailable': 5}
+  final_wavelet_source_scope: final_model_and_local_fallback_mix
+  final_wavelet_source_codes: {'tv_candidate': 0, 'q_constrained_candidate': 1, 'stationary_prior': 2, 'local_fallback_prior': 3, 'local_fallback_blend': 4}
+  local_fallback_peak_limit_ms: 15.0
+  local_fallback_energy_min: 0.15
+  local_fallback_pad_ms: 0.0
+  local_fallback_alpha_smooth_samples: 15.0
+  local_fallback_use_shape_qc: True
+  local_fallback_side_lobe_limit_reliable: 0.75
+  local_fallback_side_lobe_limit_fallback: 0.95
+  local_fallback_side_lobe_guard_ms: 12.0
+  local_fallback_edge_energy_limit_reliable: 0.15
+  local_fallback_edge_energy_limit_fallback: 0.3
+  local_fallback_edge_fraction: 0.15
+  CC_final_direct: 0.28798602430869386
+  CC_final_similarity: 0.19315214838284994
+  CC_final_maxlag: 0.28798602430722053
+  CC_final_env: 0.01703209309431216
+  CC_final_best_lag_ms: 0.0
+  CC_final_lag_penalty: 0.0
+  CC_final_before_local_fallback_direct: 0.43564441377134566
+  CC_final_before_local_fallback_similarity: 0.28134170076535125
+  CC_final_before_local_fallback_maxlag: 0.43742544352417484
+  CC_final_before_local_fallback_env: 0.027695044142625705
+  CC_final_before_local_fallback_best_lag_ms: -1.0000000000000009
+  CC_final_similarity_delta_local_fallback: -0.08818955238250131
+  CC_final_direct_delta_local_fallback: -0.1476583894626518
+  final_peak_metric_p10_before_local_fallback: -2.0000000000000018
+  final_peak_metric_med_before_local_fallback: -1.0000000000000009
+  final_peak_metric_p90_before_local_fallback: 64.00000000000006
+  final_peak_abs_p90_before_local_fallback: 64.00000000000006
+  final_peak_metric_p10_after_local_fallback: -1.0000000000000009
+  final_peak_metric_med_after_local_fallback: 0.0
+  final_peak_metric_p90_after_local_fallback: 0.0
+  final_peak_abs_p90_after_local_fallback: 1.0000000000000009
+  final_wavelet_energy_l2_median_before_local_fallback: 4.02111962104431
+  final_wavelet_energy_l2_median_after_local_fallback: 3.3143580857549155
+  final_centroid_frequency_hz_median_before_local_fallback: 27.035427931850258
+  final_centroid_frequency_hz_median_after_local_fallback: 28.282293174587643
+  W_pass_scope: preacceptance_hybrid_candidate
+  CC_tv_direct_scope: preacceptance_hybrid_candidate
+  valid_ratio_scope: raw_tv_direct_inversion_centers
+  acceptance_reasons_scope: preacceptance_hybrid_candidate
+  peak_metric_scope: preacceptance_hybrid_candidate
+  best_lag_scope: preacceptance_hybrid_candidate
+  hybrid_acceptance_evaluated: True
+  hybrid_acceptance_passed: True
+  hybrid_acceptance_reasons: []
+  hybrid_acceptance_scope: decisive_preacceptance_hybrid_gate
+  post_local_fallback_acceptance_evaluated: True
+  post_local_fallback_acceptance_passed: True
+  post_local_fallback_acceptance_reasons: []
+  post_local_fallback_acceptance_scope: legacy_alias_of_decisive_preacceptance_hybrid_gate
+  CC_final_ricker_similarity: 0.0017388165135371267
+  CC_final_ricker_maxlag: 0.09949674980679894
+  CC_final_ricker_env: -0.03153547044942684
+  CC_final_ricker_scope: 35hz_initial_reflectivity
+  ricker_qc_frequency_hz: 35.0
+  ricker_qc_wavelet_length_pts: 129
+  CC_ricker_35hz_initial_reflectivity_direct: 0.08053018777090891
+  CC_ricker_35hz_initial_reflectivity_similarity: 0.0017388165135371267
+  CC_ricker_35hz_initial_reflectivity_maxlag: 0.09949674980679894
+  CC_ricker_35hz_initial_reflectivity_env: -0.03153547044942684
+  CC_ricker_35hz_initial_reflectivity_best_lag_ms: -4.0000000000000036
+  CC_ricker_35hz_after_dtw_reflectivity_direct: 0.1348382639136047
+  CC_ricker_35hz_after_dtw_reflectivity_similarity: 0.06629075846590803
+  CC_ricker_35hz_after_dtw_reflectivity_maxlag: 0.13483826391115256
+  CC_ricker_35hz_after_dtw_reflectivity_env: -0.06101175164738958
+  CC_ricker_35hz_after_dtw_reflectivity_best_lag_ms: 0.0
+[Matrix] running configs\ablation\L01_no_mu2.yaml
+============================================================
+Real-data experiment (CB805): cb805_ablation_L01_no_mu2
+alignment = center
+result_dir = _experiment_results/ablation/round2_lag/L01_no_mu2
+============================================================
+  [Ricker prior] use fixed center Ricker before DTW
+  [Ricker prior] f_dom = 28.32 Hz
+  [Ricker prior] wavelet_length_pts = 129
+  [Ricker prior] CC = 0.103651
+[Initial prior] source = center_ricker_for_DTW
+[Initial prior] CC = 0.103651
+  [DTW-iter] phased candidate DTW begins
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.39 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1037 / 0.1191
+  [DTW-envelope] Env before/after = -0.0358 / -0.0530
+  [DTW-envelope] maxlag after = 0.1234, lag = -2.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.40 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1191 / 0.1277
+  [DTW-envelope] Env before/after = -0.0530 / -0.0688
+  [DTW-envelope] maxlag after = 0.1277, lag = 0.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-iter] phase envelope: accepted 2/2
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.77 ms
+  [DTW-waveform] CC before/after = 0.1277 / 0.1385
+  [DTW-waveform] Env before/after = -0.0688 / -0.0667
+  [DTW-waveform] maxlag after = 0.1385, lag = 0.0 ms
+  [DTW-waveform] TWT max change = 0.93 ms
+  [DTW-waveform] accept = True
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.71 ms
+  [DTW-waveform] CC before/after = 0.1385 / 0.1485
+  [DTW-waveform] Env before/after = -0.0667 / -0.0649
+  [DTW-waveform] maxlag after = 0.1487, lag = -1.0 ms
+  [DTW-waveform] TWT max change = 0.86 ms
+  [DTW-waveform] accept = True
+  [DTW-iter] phase waveform: accepted 2/2
+  [DTW-iter] keep fixed initial wavelet before fine DTW
+  [DTW-fine] window = 9 samples
+  [DTW-fine] alpha candidates = [0.0, 0.01, 0.02, 0.04, 0.06]
+  [DTW-fine] best alpha/sign = 0.060 / +1
+  [DTW-fine] shift range = -0.48 ~ 0.30 ms
+  [DTW-fine] CC before/after = 0.1485 / 0.1554
+  [DTW-fine] Env before/after = -0.0649 / -0.0648
+  [DTW-fine] maxlag after = 0.1555, lag = -1.0 ms
+  [DTW-fine] TWT max change = 0.30 ms
+  [DTW-fine] accept = True
+  [DTW-iter] phase fine: accepted 1/1
+  [Constant-phase prior] statistical amplitude spectrum + constant phase search
+  [Constant-phase prior] spectral peak = 28.00 Hz
+  [Constant-phase prior] auto band = 5.00 - 62.00 Hz
+  [Constant-phase prior] phase = -3.0 deg, peak = +0.0 ms
+  [Constant-phase prior] CC = 0.157126, Ricker CC = 0.155403
+[DTW] CC = 0.155403
+[After-DTW prior] source = statistical_constant_phase_prior_after_DTW
+[After-DTW prior] CC = 0.157126
+
+--- Step 2: 固定 r_work_final，反演时变子波 ---
+========== Robust time-varying wavelet inversion ==========
+  N_time                = 2546
+  dt                    = 0.001000 s
+  wavelet_length        = 129
+  data_window_length    = 387
+  estimate_step_samples = 20
+  estimate_step_ms      = 20.00 ms
+  mu1                   = 0.2
+  mu2                   = 0.0
+  mu_dc                 = 0.0
+  mu_prior              = 1.0
+  mu_time               = 8.0
+  mu_edge               = 1.0
+  edge_fraction         = 0.12
+  edge_taper            = cosine
+  energy_threshold      = 1.162267e-02
+  damping_ratio         = 0.0
+  svd_cutoff_ratio      = 0.001
+  min_effective_rank    = 16
+  max_peak_shift        = 15 samples
+  time_smooth_sigma     = 30.00 samples
+  wavelet_smooth_sigma  = 4.00 samples
+  has_wavelet_prior     = True
+  loss_type             = student_t
+  student_nu            = 10.0
+  irls_max_iter         = 12
+  irls_tol              = 0.0003
+  robust_scale_floor    = 1.953573e-02
+  robust_weight_floor   = 0.001
+  min_effective_ratio   = 0.3
+  outlier_weight_thresh = 0.5
+  store_weight_map      = True
+  attempted windows      = 108
+  valid inverted centers = 70 / 108
+  skipped low energy     = 21
+  skipped ill-cond       = 0
+  skipped NaN/Inf        = 0
+  skipped peak shift     = 17
+  skipped amp jump       = 0
+  robust attempted       = 87
+  irls_step_converged    = 87
+  robust solution used   = 87
+  post_qc_valid (robust) = 70
+  robust fallback to L2  = 0
+  median robust sigma    = 3.234014e-01
+  median weight mean     = 0.9170
+  median effective ratio = 0.9880
+  median qc_dc_ratio     = 1.204e-17
+  median centroid_freq   = 27.13 Hz
+============================================================
+  wavelet_alignment     = center
+
+--- Step 3: W_est 直接合成与质量验收 ---
+  use_negative_W      = False
+  CC_stationary       = 0.1571
+  CC_after_DTW        = 0.1554
+  CC_tv_direct        = 0.4357
+  CC gain vs DTW      = +0.2803
+  CC gain vs stat     = +0.2786
+  Maxlag CC           = 0.4374, lag=-1.0 ms
+  Envelope CC         = 0.0278, gain vs stat=+0.0809
+  Peak metric p10/med/p90 = -2.00 / -1.00 / 64.00 ms
+  wavelet_alignment   = center
+  valid_ratio         = 0.6481481481481481
+  numerical_pass      = True
+  physical_pass       = False
+  W_est pass gate     = False
+[Pre-acceptance hybrid] enabled = True
+[Pre-acceptance hybrid] short gap limit = 60.0 ms
+[Pre-acceptance hybrid] strict reliable sample ratio = 0.016
+[Pre-acceptance hybrid] valid direct centers = 70
+[Pre-acceptance hybrid] strict reliable centers = 42 (0.600)
+[Pre-acceptance hybrid] gray admissible centers = 20 (0.286)
+[Pre-acceptance hybrid] total admissible centers = 62 (0.886)
+[Pre-acceptance hybrid] rejected direct centers = 8 (0.114)
+[Pre-acceptance hybrid] TV support sample ratio = 0.480
+[Pre-acceptance hybrid] short gap ratio = 0.456
+[Pre-acceptance hybrid] hard prior ratio = 0.520
+[Pre-acceptance hybrid] blend ratio = 0.094
+[Pre-acceptance hybrid] raw CC = 0.435733
+[Pre-acceptance hybrid] hybrid CC = 0.288468
+[Pre-acceptance hybrid] raw pass = False
+[Pre-acceptance hybrid] hybrid pass = True
+[Pre-acceptance hybrid] reasons = []
+[Local fallback] enabled = True
+[Local fallback] hard_ratio      = 0.520
+[Local fallback] effective_ratio = 0.529
+[Candidate QC] reliable_ratio  = 0.016
+[Candidate QC] shape_bad_ratio = 0.350
+[Local fallback] shape_ratio     = 0.350
+[Pre-acceptance hybrid] decisive acceptance pass = True; reasons = []
+>>> NEW plot_pure_ricker_vs_obs_vs_tv_wiggle <<<
+[Selected-time QC] fig10
+  target=0.835s selected=0.835s idx=255 raw_idx=255 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.681 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.513s selected=1.513s idx=933 raw_idx=933 direct_inverted=1 strict_reliable=1 admissible_direct=1 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-2.000 wavelet_energy_norm=0.736 side_lobe_ratio=0.655 edge_energy_ratio=0.099
+  target=2.192s selected=2.192s idx=1612 raw_idx=1612 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=0.000 wavelet_energy_norm=0.831 side_lobe_ratio=0.603 edge_energy_ratio=0.062
+  target=2.870s selected=2.870s idx=2290 raw_idx=2290 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.681 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+[Selected-time QC] fig11
+  target=0.835s selected=0.835s idx=255 raw_idx=255 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.681 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.089s selected=1.089s idx=509 raw_idx=509 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.681 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.343s selected=1.394s idx=814 raw_idx=763 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-1.000 wavelet_energy_norm=0.948 side_lobe_ratio=0.749 edge_energy_ratio=0.128
+  target=1.598s selected=1.598s idx=1018 raw_idx=1018 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-1.000 wavelet_energy_norm=0.666 side_lobe_ratio=0.613 edge_energy_ratio=0.092
+  target=1.852s selected=1.852s idx=1272 raw_idx=1272 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.681 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=2.107s selected=2.107s idx=1527 raw_idx=1527 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=0.833 final_alpha=0.833 peak_metric_ms=0.000 wavelet_energy_norm=0.695 side_lobe_ratio=0.570 edge_energy_ratio=0.051
+  target=2.361s selected=2.361s idx=1781 raw_idx=1781 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=0.000 wavelet_energy_norm=0.899 side_lobe_ratio=0.540 edge_energy_ratio=0.034
+  target=2.616s selected=2.616s idx=2036 raw_idx=2036 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-1.000 wavelet_energy_norm=0.973 side_lobe_ratio=0.700 edge_energy_ratio=0.016
+  target=2.870s selected=2.870s idx=2290 raw_idx=2290 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.681 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+
+[Final]
+  CC_initial_ricker_before_DTW: 0.1036507646943142
+  CC_stationary: 0.1571262285067304
+  CC_after_DTW: 0.15540264622905386
+  CC_prior_after_DTW: 0.1571262285067304
+  CC_tv_direct: 0.28846820541765794
+  W_pass: True
+  q_pass: False
+  CC_Q: None
+  Q_global: None
+  CC_final: 0.28846820541765794
+  final_model_type: W_est_best_no_Q
+  best_lag_ms: 0.0
+  peak_metric_p10: -1.0000000000000009
+  peak_metric_med: 0.0
+  peak_metric_p90: 0.0
+  peak_abs_p90: 1.0000000000000009
+  valid_ratio: 0.6481481481481481
+  use_negative_W: False
+  acceptance_reasons: []
+  q_reason: q_disabled
+  raw_tv_peak_metric_p10: -2.0000000000000018
+  raw_tv_peak_metric_med: -1.0000000000000009
+  raw_tv_peak_metric_p90: 64.00000000000006
+  hybrid_direct_reliable_ratio_scope: strict_reliable_samples_over_all_time_samples
+  hybrid_valid_direct_count: 70
+  hybrid_strict_reliable_direct_count: 42
+  hybrid_admissible_direct_count: 62
+  hybrid_gray_zone_direct_count: 20
+  hybrid_rejected_direct_count: 8
+  hybrid_strict_reliable_center_ratio: 0.6
+  hybrid_admissible_direct_center_ratio: 0.8857142857142857
+  hybrid_gray_zone_center_ratio: 0.2857142857142857
+  hybrid_rejected_direct_center_ratio: 0.11428571428571428
+  hybrid_strict_reliable_sample_ratio: 0.016496465043205028
+  hybrid_admissible_direct_sample_ratio: 0.024351924587588374
+  hybrid_gray_zone_sample_ratio: 0.007855459544383346
+  hybrid_rejected_direct_sample_ratio: 0.003142183817753339
+  raw_tv_W_pass: False
+  raw_tv_CC_direct: 0.435733218993758
+  raw_tv_best_lag_ms: -1.0000000000000009
+  raw_tv_peak_abs_p90: 64.00000000000006
+  raw_tv_acceptance_reasons: ['center_peak_p90_shift_too_large', 'center_peak_violation_ratio_too_large']
+  hybrid_tv_W_pass: True
+  hybrid_tv_acceptance_reasons: []
+  hybrid_tv_CC_direct: 0.28846820541765794
+  hybrid_tv_env_cc: 0.017341329854845034
+  hybrid_tv_best_lag_ms: 0.0
+  hybrid_tv_peak_p10_ms: -1.0000000000000009
+  hybrid_tv_peak_median_ms: 0.0
+  hybrid_tv_peak_p90_ms: 0.0
+  hybrid_tv_peak_abs_p90_ms: 1.0000000000000009
+  hybrid_tv_peak_violation_ratio: 0.0
+  hybrid_short_gap_limit_ms: 60.0
+  hybrid_direct_reliable_ratio: 0.016496465043205028
+  hybrid_short_gap_ratio: 0.4556166535742341
+  hybrid_hard_prior_ratio: 0.5200314218381775
+  hybrid_blend_ratio: 0.09426551453260015
+  hybrid_tv_support_ratio: 0.4799685781618225
+  hybrid_candidate_scope: local_repair_before_global_acceptance
+  residual_median_p90: 0.046177140604589564
+  residual_median_med: -0.0008852148634606628
+  tv_loss_type: student_t
+  tv_student_nu: 10.0
+  tv_robust_fallback: l2
+  tv_irls_max_iter: 12
+  tv_irls_tol: 0.0003
+  edge_penalty_enabled: True
+  mu_edge_configured: 1.0
+  mu_edge_effective: 1.0
+  edge_penalty_fraction: 0.12
+  edge_penalty_taper: cosine
+  student_objective_includes_edge: True
+  stationary_candidate_accepted: False
+  stationary_candidate_peak_ms: nan
+  stationary_rejection_code: not_attempted_constant_phase_policy
+  stationary_rejection_reason: after-DTW prior 使用 statistical constant-phase policy，未运行 free-form stationary LS candidate。
+  stationary_prior_source: statistical_constant_phase_prior_after_DTW
+  prior_source: statistical_constant_phase_prior_after_DTW
+  CC_selected_prior_after_DTW: 0.1571262285067304
+  stationary_prior_method_configured: constant_phase
+  constant_phase_candidate_accepted: True
+  constant_phase_deg: -3.0
+  constant_phase_spectral_peak_hz: 27.999999999999975
+  constant_phase_band_low_hz: 4.999999999999996
+  constant_phase_band_high_hz: 61.99999999999994
+  constant_phase_candidate_cc: 0.1571262285067304
+  constant_phase_ricker_cc: 0.15540264622905386
+  constant_phase_rejection_reason: 
+  CC_stationary_raw: nan
+  CC_stationary_raw_env: nan
+  CC_stationary_raw_scope: unlocked_candidate_before_ricker_fallback
+  CC_prior_after_DTW_scope: selected_prior_after_DTW
+  candidate_valid_ratio: 0.6481481481481481
+  candidate_best_lag_ms: -1.0000000000000009
+  candidate_peak_metric_p10: -2.0000000000000018
+  candidate_peak_metric_med: -1.0000000000000009
+  candidate_peak_metric_p90: 64.00000000000006
+  candidate_peak_abs_p90: 64.00000000000006
+  local_fallback_enabled: True
+  local_fallback_ratio: 0.5294273279830994
+  local_fallback_hard_ratio: 0.5200314218381775
+  local_fallback_effective_ratio: 0.5294273279830994
+  fallback_by_shape_ratio: 0.35035349567949725
+  candidate_shape_fallback_request_ratio: 0.35035349567949725
+  candidate_shape_fallback_raw_ratio: 0.35035349567949725
+  candidate_reliable_ratio: 0.016496465043205028
+  candidate_reliable_scope: direct_inversion_and_peak_energy_shape_qc
+  final_reliable_ratio: 0.8617439120188531
+  final_reliable_scope: shape_peak_energy_only; does_not_mean_direct_inversion
+  side_lobe_p90: 1.2488861742833293
+  edge_energy_p90: 0.23000912081564814
+  candidate_side_lobe_p50: 0.752899538166195
+  candidate_side_lobe_p90: 1.2488861742833293
+  candidate_side_lobe_max: 1.2488861742833293
+  candidate_edge_energy_p50: 0.11511388066096083
+  candidate_edge_energy_p90: 0.23000912081564814
+  candidate_edge_energy_max: 0.23000912081564814
+  final_side_lobe_p50: 0.4379574936754552
+  final_side_lobe_p90: 0.800262704113174
+  final_side_lobe_max: 0.8840394986395885
+  final_edge_energy_p50: 0.00041701885192026
+  final_edge_energy_p90: 0.12719427179899326
+  final_edge_energy_max: 0.18160582641935813
+  candidate_boundary_peak_fraction: 0.197172034564022
+  final_boundary_peak_fraction: 0.0
+  boundary_peak_fraction_parameter: 0.12
+  candidate_peak_violation_ratio: 0.32128829536527886
+  candidate_center_step_ms: 20.000000000000018
+  longest_candidate_invalid_gap_ms: 399.9999999999999
+  longest_candidate_unreliable_gap_ms: 640.0
+  candidate_temporal_difference_energy: 7.248303829724854e-05
+  final_temporal_difference_energy: 0.0036438930937798125
+  irls_iterations_median: 3.0
+  irls_iterations_max: 5
+  candidate_origin_scope: pre_gaussian_fill_lineage
+  candidate_origin_codes: {'direct_inverted_center': 0, 'linear_interpolated': 1, 'endpoint_extrapolated': 2, 'prior_fill_when_no_valid_center': 3, 'unavailable': 5}
+  final_wavelet_source_scope: final_model_and_local_fallback_mix
+  final_wavelet_source_codes: {'tv_candidate': 0, 'q_constrained_candidate': 1, 'stationary_prior': 2, 'local_fallback_prior': 3, 'local_fallback_blend': 4}
+  local_fallback_peak_limit_ms: 15.0
+  local_fallback_energy_min: 0.15
+  local_fallback_pad_ms: 0.0
+  local_fallback_alpha_smooth_samples: 15.0
+  local_fallback_use_shape_qc: True
+  local_fallback_side_lobe_limit_reliable: 0.75
+  local_fallback_side_lobe_limit_fallback: 0.95
+  local_fallback_side_lobe_guard_ms: 12.0
+  local_fallback_edge_energy_limit_reliable: 0.15
+  local_fallback_edge_energy_limit_fallback: 0.3
+  local_fallback_edge_fraction: 0.15
+  CC_final_direct: 0.28846820541765794
+  CC_final_similarity: 0.19357379896986174
+  CC_final_maxlag: 0.2884682054161821
+  CC_final_env: 0.017341329854845034
+  CC_final_best_lag_ms: 0.0
+  CC_final_lag_penalty: 0.0
+  CC_final_before_local_fallback_direct: 0.435733218993758
+  CC_final_before_local_fallback_similarity: 0.2814050066957447
+  CC_final_before_local_fallback_maxlag: 0.43744032921659426
+  CC_final_before_local_fallback_env: 0.02782715350640148
+  CC_final_before_local_fallback_best_lag_ms: -1.0000000000000009
+  CC_final_similarity_delta_local_fallback: -0.08783120772588296
+  CC_final_direct_delta_local_fallback: -0.14726501357610006
+  final_peak_metric_p10_before_local_fallback: -2.0000000000000018
+  final_peak_metric_med_before_local_fallback: -1.0000000000000009
+  final_peak_metric_p90_before_local_fallback: 64.00000000000006
+  final_peak_abs_p90_before_local_fallback: 64.00000000000006
+  final_peak_metric_p10_after_local_fallback: -1.0000000000000009
+  final_peak_metric_med_after_local_fallback: 0.0
+  final_peak_metric_p90_after_local_fallback: 0.0
+  final_peak_abs_p90_after_local_fallback: 1.0000000000000009
+  final_wavelet_energy_l2_median_before_local_fallback: 4.0398984745553115
+  final_wavelet_energy_l2_median_after_local_fallback: 3.3143580857549155
+  final_centroid_frequency_hz_median_before_local_fallback: 27.128429917364784
+  final_centroid_frequency_hz_median_after_local_fallback: 28.282293174587643
+  W_pass_scope: preacceptance_hybrid_candidate
+  CC_tv_direct_scope: preacceptance_hybrid_candidate
+  valid_ratio_scope: raw_tv_direct_inversion_centers
+  acceptance_reasons_scope: preacceptance_hybrid_candidate
+  peak_metric_scope: preacceptance_hybrid_candidate
+  best_lag_scope: preacceptance_hybrid_candidate
+  hybrid_acceptance_evaluated: True
+  hybrid_acceptance_passed: True
+  hybrid_acceptance_reasons: []
+  hybrid_acceptance_scope: decisive_preacceptance_hybrid_gate
+  post_local_fallback_acceptance_evaluated: True
+  post_local_fallback_acceptance_passed: True
+  post_local_fallback_acceptance_reasons: []
+  post_local_fallback_acceptance_scope: legacy_alias_of_decisive_preacceptance_hybrid_gate
+  CC_final_ricker_similarity: 0.0017388165135371267
+  CC_final_ricker_maxlag: 0.09949674980679894
+  CC_final_ricker_env: -0.03153547044942684
+  CC_final_ricker_scope: 35hz_initial_reflectivity
+  ricker_qc_frequency_hz: 35.0
+  ricker_qc_wavelet_length_pts: 129
+  CC_ricker_35hz_initial_reflectivity_direct: 0.08053018777090891
+  CC_ricker_35hz_initial_reflectivity_similarity: 0.0017388165135371267
+  CC_ricker_35hz_initial_reflectivity_maxlag: 0.09949674980679894
+  CC_ricker_35hz_initial_reflectivity_env: -0.03153547044942684
+  CC_ricker_35hz_initial_reflectivity_best_lag_ms: -4.0000000000000036
+  CC_ricker_35hz_after_dtw_reflectivity_direct: 0.1348382639136047
+  CC_ricker_35hz_after_dtw_reflectivity_similarity: 0.06629075846590803
+  CC_ricker_35hz_after_dtw_reflectivity_maxlag: 0.13483826391115256
+  CC_ricker_35hz_after_dtw_reflectivity_env: -0.06101175164738958
+  CC_ricker_35hz_after_dtw_reflectivity_best_lag_ms: 0.0
+[Matrix] running configs\ablation\L02_no_lag_gaussian.yaml
+============================================================
+Real-data experiment (CB805): cb805_ablation_L02_no_lag_gaussian
+alignment = center
+result_dir = _experiment_results/ablation/round2_lag/L02_no_lag_gaussian
+============================================================
+  [Ricker prior] use fixed center Ricker before DTW
+  [Ricker prior] f_dom = 28.32 Hz
+  [Ricker prior] wavelet_length_pts = 129
+  [Ricker prior] CC = 0.103651
+[Initial prior] source = center_ricker_for_DTW
+[Initial prior] CC = 0.103651
+  [DTW-iter] phased candidate DTW begins
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.39 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1037 / 0.1191
+  [DTW-envelope] Env before/after = -0.0358 / -0.0530
+  [DTW-envelope] maxlag after = 0.1234, lag = -2.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.40 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1191 / 0.1277
+  [DTW-envelope] Env before/after = -0.0530 / -0.0688
+  [DTW-envelope] maxlag after = 0.1277, lag = 0.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-iter] phase envelope: accepted 2/2
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.77 ms
+  [DTW-waveform] CC before/after = 0.1277 / 0.1385
+  [DTW-waveform] Env before/after = -0.0688 / -0.0667
+  [DTW-waveform] maxlag after = 0.1385, lag = 0.0 ms
+  [DTW-waveform] TWT max change = 0.93 ms
+  [DTW-waveform] accept = True
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.71 ms
+  [DTW-waveform] CC before/after = 0.1385 / 0.1485
+  [DTW-waveform] Env before/after = -0.0667 / -0.0649
+  [DTW-waveform] maxlag after = 0.1487, lag = -1.0 ms
+  [DTW-waveform] TWT max change = 0.86 ms
+  [DTW-waveform] accept = True
+  [DTW-iter] phase waveform: accepted 2/2
+  [DTW-iter] keep fixed initial wavelet before fine DTW
+  [DTW-fine] window = 9 samples
+  [DTW-fine] alpha candidates = [0.0, 0.01, 0.02, 0.04, 0.06]
+  [DTW-fine] best alpha/sign = 0.060 / +1
+  [DTW-fine] shift range = -0.48 ~ 0.30 ms
+  [DTW-fine] CC before/after = 0.1485 / 0.1554
+  [DTW-fine] Env before/after = -0.0649 / -0.0648
+  [DTW-fine] maxlag after = 0.1555, lag = -1.0 ms
+  [DTW-fine] TWT max change = 0.30 ms
+  [DTW-fine] accept = True
+  [DTW-iter] phase fine: accepted 1/1
+  [Constant-phase prior] statistical amplitude spectrum + constant phase search
+  [Constant-phase prior] spectral peak = 28.00 Hz
+  [Constant-phase prior] auto band = 5.00 - 62.00 Hz
+  [Constant-phase prior] phase = -3.0 deg, peak = +0.0 ms
+  [Constant-phase prior] CC = 0.157126, Ricker CC = 0.155403
+[DTW] CC = 0.155403
+[After-DTW prior] source = statistical_constant_phase_prior_after_DTW
+[After-DTW prior] CC = 0.157126
+
+--- Step 2: 固定 r_work_final，反演时变子波 ---
+========== Robust time-varying wavelet inversion ==========
+  N_time                = 2546
+  dt                    = 0.001000 s
+  wavelet_length        = 129
+  data_window_length    = 387
+  estimate_step_samples = 20
+  estimate_step_ms      = 20.00 ms
+  mu1                   = 0.2
+  mu2                   = 6.0
+  mu_dc                 = 0.0
+  mu_prior              = 1.0
+  mu_time               = 8.0
+  mu_edge               = 1.0
+  edge_fraction         = 0.12
+  edge_taper            = cosine
+  energy_threshold      = 1.162267e-02
+  damping_ratio         = 0.0
+  svd_cutoff_ratio      = 0.001
+  min_effective_rank    = 16
+  max_peak_shift        = 15 samples
+  time_smooth_sigma     = 30.00 samples
+  wavelet_smooth_sigma  = 0.00 samples
+  has_wavelet_prior     = True
+  loss_type             = student_t
+  student_nu            = 10.0
+  irls_max_iter         = 12
+  irls_tol              = 0.0003
+  robust_scale_floor    = 1.953573e-02
+  robust_weight_floor   = 0.001
+  min_effective_ratio   = 0.3
+  outlier_weight_thresh = 0.5
+  store_weight_map      = True
+  attempted windows      = 108
+  valid inverted centers = 70 / 108
+  skipped low energy     = 21
+  skipped ill-cond       = 0
+  skipped NaN/Inf        = 0
+  skipped peak shift     = 17
+  skipped amp jump       = 0
+  robust attempted       = 87
+  irls_step_converged    = 87
+  robust solution used   = 87
+  post_qc_valid (robust) = 70
+  robust fallback to L2  = 0
+  median robust sigma    = 3.245219e-01
+  median weight mean     = 0.9173
+  median effective ratio = 0.9881
+  median qc_dc_ratio     = 1.318e-17
+  median centroid_freq   = 30.02 Hz
+============================================================
+  wavelet_alignment     = center
+
+--- Step 3: W_est 直接合成与质量验收 ---
+  use_negative_W      = False
+  CC_stationary       = 0.1571
+  CC_after_DTW        = 0.1554
+  CC_tv_direct        = 0.4444
+  CC gain vs DTW      = +0.2890
+  CC gain vs stat     = +0.2873
+  Maxlag CC           = 0.4446, lag=-1.0 ms
+  Envelope CC         = 0.0450, gain vs stat=+0.0981
+  Peak metric p10/med/p90 = -14.00 / -1.00 / 0.00 ms
+  wavelet_alignment   = center
+  valid_ratio         = 0.6481481481481481
+  numerical_pass      = True
+  physical_pass       = True
+  W_est pass gate     = True
+[Pre-acceptance hybrid] enabled = True
+[Pre-acceptance hybrid] short gap limit = 60.0 ms
+[Pre-acceptance hybrid] strict reliable sample ratio = 0.016
+[Pre-acceptance hybrid] valid direct centers = 70
+[Pre-acceptance hybrid] strict reliable centers = 41 (0.586)
+[Pre-acceptance hybrid] gray admissible centers = 24 (0.343)
+[Pre-acceptance hybrid] total admissible centers = 65 (0.929)
+[Pre-acceptance hybrid] rejected direct centers = 5 (0.071)
+[Pre-acceptance hybrid] TV support sample ratio = 0.504
+[Pre-acceptance hybrid] short gap ratio = 0.478
+[Pre-acceptance hybrid] hard prior ratio = 0.496
+[Pre-acceptance hybrid] blend ratio = 0.094
+[Pre-acceptance hybrid] raw CC = 0.444446
+[Pre-acceptance hybrid] hybrid CC = 0.352148
+[Pre-acceptance hybrid] raw pass = True
+[Pre-acceptance hybrid] hybrid pass = True
+[Pre-acceptance hybrid] reasons = []
+[Local fallback] enabled = True
+[Local fallback] hard_ratio      = 0.496
+[Local fallback] effective_ratio = 0.506
+[Candidate QC] reliable_ratio  = 0.016
+[Candidate QC] shape_bad_ratio = 0.326
+[Local fallback] shape_ratio     = 0.326
+[Pre-acceptance hybrid] decisive acceptance pass = True; reasons = []
+>>> NEW plot_pure_ricker_vs_obs_vs_tv_wiggle <<<
+[Selected-time QC] fig10
+  target=0.835s selected=0.835s idx=255 raw_idx=255 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.501 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.513s selected=1.513s idx=933 raw_idx=933 direct_inverted=1 strict_reliable=1 admissible_direct=1 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-2.000 wavelet_energy_norm=0.718 side_lobe_ratio=0.714 edge_energy_ratio=0.100
+  target=2.192s selected=2.192s idx=1612 raw_idx=1612 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=0.000 wavelet_energy_norm=0.779 side_lobe_ratio=0.627 edge_energy_ratio=0.052
+  target=2.870s selected=2.870s idx=2290 raw_idx=2290 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.501 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+[Selected-time QC] fig11
+  target=0.835s selected=0.835s idx=255 raw_idx=255 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.501 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.089s selected=1.089s idx=509 raw_idx=509 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.501 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.343s selected=1.445s idx=865 raw_idx=763 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-2.000 wavelet_energy_norm=0.844 side_lobe_ratio=0.750 edge_energy_ratio=0.123
+  target=1.598s selected=1.598s idx=1018 raw_idx=1018 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-2.000 wavelet_energy_norm=0.648 side_lobe_ratio=0.675 edge_energy_ratio=0.091
+  target=1.852s selected=1.852s idx=1272 raw_idx=1272 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.501 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=2.107s selected=2.107s idx=1527 raw_idx=1527 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=0.833 final_alpha=0.833 peak_metric_ms=-1.000 wavelet_energy_norm=0.640 side_lobe_ratio=0.616 edge_energy_ratio=0.050
+  target=2.361s selected=2.361s idx=1781 raw_idx=1781 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=0.000 wavelet_energy_norm=0.813 side_lobe_ratio=0.541 edge_energy_ratio=0.028
+  target=2.616s selected=2.616s idx=2036 raw_idx=2036 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-1.000 wavelet_energy_norm=0.828 side_lobe_ratio=0.711 edge_energy_ratio=0.016
+  target=2.870s selected=2.870s idx=2290 raw_idx=2290 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.501 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+
+[Final]
+  CC_initial_ricker_before_DTW: 0.1036507646943142
+  CC_stationary: 0.1571262285067304
+  CC_after_DTW: 0.15540264622905386
+  CC_prior_after_DTW: 0.1571262285067304
+  CC_tv_direct: 0.35214778463743446
+  W_pass: True
+  q_pass: False
+  CC_Q: None
+  Q_global: None
+  CC_final: 0.35214778463743446
+  final_model_type: W_est_best_no_Q
+  best_lag_ms: 0.0
+  peak_metric_p10: -2.0000000000000018
+  peak_metric_med: 0.0
+  peak_metric_p90: 0.0
+  peak_abs_p90: 2.0000000000000018
+  valid_ratio: 0.6481481481481481
+  use_negative_W: False
+  acceptance_reasons: []
+  q_reason: q_disabled
+  raw_tv_peak_metric_p10: -14.000000000000012
+  raw_tv_peak_metric_med: -1.0000000000000009
+  raw_tv_peak_metric_p90: 0.0
+  hybrid_direct_reliable_ratio_scope: strict_reliable_samples_over_all_time_samples
+  hybrid_valid_direct_count: 70
+  hybrid_strict_reliable_direct_count: 41
+  hybrid_admissible_direct_count: 65
+  hybrid_gray_zone_direct_count: 24
+  hybrid_rejected_direct_count: 5
+  hybrid_strict_reliable_center_ratio: 0.5857142857142857
+  hybrid_admissible_direct_center_ratio: 0.9285714285714286
+  hybrid_gray_zone_center_ratio: 0.34285714285714286
+  hybrid_rejected_direct_center_ratio: 0.07142857142857142
+  hybrid_strict_reliable_sample_ratio: 0.01610369206598586
+  hybrid_admissible_direct_sample_ratio: 0.025530243519245877
+  hybrid_gray_zone_sample_ratio: 0.009426551453260016
+  hybrid_rejected_direct_sample_ratio: 0.0019638648860958365
+  raw_tv_W_pass: True
+  raw_tv_CC_direct: 0.4444458718853558
+  raw_tv_best_lag_ms: -1.0000000000000009
+  raw_tv_peak_abs_p90: 14.000000000000012
+  raw_tv_acceptance_reasons: []
+  hybrid_tv_W_pass: True
+  hybrid_tv_acceptance_reasons: []
+  hybrid_tv_CC_direct: 0.35214778463743446
+  hybrid_tv_env_cc: 0.038803454156661775
+  hybrid_tv_best_lag_ms: 0.0
+  hybrid_tv_peak_p10_ms: -2.0000000000000018
+  hybrid_tv_peak_median_ms: 0.0
+  hybrid_tv_peak_p90_ms: 0.0
+  hybrid_tv_peak_abs_p90_ms: 2.0000000000000018
+  hybrid_tv_peak_violation_ratio: 0.0
+  hybrid_short_gap_limit_ms: 60.0
+  hybrid_direct_reliable_ratio: 0.01610369206598586
+  hybrid_short_gap_ratio: 0.47800471327572663
+  hybrid_hard_prior_ratio: 0.4964650432050275
+  hybrid_blend_ratio: 0.09426551453260015
+  hybrid_tv_support_ratio: 0.5035349567949725
+  hybrid_candidate_scope: local_repair_before_global_acceptance
+  residual_median_p90: 0.04510416664258942
+  residual_median_med: -0.0004982154375303013
+  tv_loss_type: student_t
+  tv_student_nu: 10.0
+  tv_robust_fallback: l2
+  tv_irls_max_iter: 12
+  tv_irls_tol: 0.0003
+  edge_penalty_enabled: True
+  mu_edge_configured: 1.0
+  mu_edge_effective: 1.0
+  edge_penalty_fraction: 0.12
+  edge_penalty_taper: cosine
+  student_objective_includes_edge: True
+  stationary_candidate_accepted: False
+  stationary_candidate_peak_ms: nan
+  stationary_rejection_code: not_attempted_constant_phase_policy
+  stationary_rejection_reason: after-DTW prior 使用 statistical constant-phase policy，未运行 free-form stationary LS candidate。
+  stationary_prior_source: statistical_constant_phase_prior_after_DTW
+  prior_source: statistical_constant_phase_prior_after_DTW
+  CC_selected_prior_after_DTW: 0.1571262285067304
+  stationary_prior_method_configured: constant_phase
+  constant_phase_candidate_accepted: True
+  constant_phase_deg: -3.0
+  constant_phase_spectral_peak_hz: 27.999999999999975
+  constant_phase_band_low_hz: 4.999999999999996
+  constant_phase_band_high_hz: 61.99999999999994
+  constant_phase_candidate_cc: 0.1571262285067304
+  constant_phase_ricker_cc: 0.15540264622905386
+  constant_phase_rejection_reason: 
+  CC_stationary_raw: nan
+  CC_stationary_raw_env: nan
+  CC_stationary_raw_scope: unlocked_candidate_before_ricker_fallback
+  CC_prior_after_DTW_scope: selected_prior_after_DTW
+  candidate_valid_ratio: 0.6481481481481481
+  candidate_best_lag_ms: -1.0000000000000009
+  candidate_peak_metric_p10: -14.000000000000012
+  candidate_peak_metric_med: -1.0000000000000009
+  candidate_peak_metric_p90: 0.0
+  candidate_peak_abs_p90: 14.000000000000012
+  local_fallback_enabled: True
+  local_fallback_ratio: 0.5058609493499494
+  local_fallback_hard_ratio: 0.4964650432050275
+  local_fallback_effective_ratio: 0.5058609493499494
+  fallback_by_shape_ratio: 0.32600157109190886
+  candidate_shape_fallback_request_ratio: 0.32600157109190886
+  candidate_shape_fallback_raw_ratio: 0.32600157109190886
+  candidate_reliable_ratio: 0.01610369206598586
+  candidate_reliable_scope: direct_inversion_and_peak_energy_shape_qc
+  final_reliable_ratio: 0.8256087981146897
+  final_reliable_scope: shape_peak_energy_only; does_not_mean_direct_inversion
+  side_lobe_p90: 1.0961026515098944
+  edge_energy_p90: 0.21378929262879962
+  candidate_side_lobe_p50: 0.7653192458150928
+  candidate_side_lobe_p90: 1.0961026515098944
+  candidate_side_lobe_max: 1.0961026515098944
+  candidate_edge_energy_p50: 0.11832724498785716
+  candidate_edge_energy_p90: 0.21378929262879962
+  candidate_edge_energy_max: 0.21378929262879962
+  final_side_lobe_p50: 0.524645899592193
+  final_side_lobe_p90: 0.8356800641969717
+  final_side_lobe_max: 0.8948581183972855
+  final_edge_energy_p50: 0.007392029382283264
+  final_edge_energy_p90: 0.14645722299517944
+  final_edge_energy_max: 0.20413822364695333
+  candidate_boundary_peak_fraction: 0.0
+  final_boundary_peak_fraction: 0.0
+  boundary_peak_fraction_parameter: 0.12
+  candidate_peak_violation_ratio: 0.0
+  candidate_center_step_ms: 20.000000000000018
+  longest_candidate_invalid_gap_ms: 399.9999999999999
+  longest_candidate_unreliable_gap_ms: 680.0
+  candidate_temporal_difference_energy: 0.00011777643988584176
+  final_temporal_difference_energy: 0.005745618225285065
+  irls_iterations_median: 3.0
+  irls_iterations_max: 5
+  candidate_origin_scope: pre_gaussian_fill_lineage
+  candidate_origin_codes: {'direct_inverted_center': 0, 'linear_interpolated': 1, 'endpoint_extrapolated': 2, 'prior_fill_when_no_valid_center': 3, 'unavailable': 5}
+  final_wavelet_source_scope: final_model_and_local_fallback_mix
+  final_wavelet_source_codes: {'tv_candidate': 0, 'q_constrained_candidate': 1, 'stationary_prior': 2, 'local_fallback_prior': 3, 'local_fallback_blend': 4}
+  local_fallback_peak_limit_ms: 15.0
+  local_fallback_energy_min: 0.15
+  local_fallback_pad_ms: 0.0
+  local_fallback_alpha_smooth_samples: 15.0
+  local_fallback_use_shape_qc: True
+  local_fallback_side_lobe_limit_reliable: 0.75
+  local_fallback_side_lobe_limit_fallback: 0.95
+  local_fallback_side_lobe_guard_ms: 12.0
+  local_fallback_edge_energy_limit_reliable: 0.15
+  local_fallback_edge_energy_limit_fallback: 0.3
+  local_fallback_edge_fraction: 0.15
+  CC_final_direct: 0.35214778463743446
+  CC_final_similarity: 0.24247726896817312
+  CC_final_maxlag: 0.35214778463563284
+  CC_final_env: 0.038803454156661775
+  CC_final_best_lag_ms: 0.0
+  CC_final_lag_penalty: 0.0
+  CC_final_before_local_fallback_direct: 0.4444458718853558
+  CC_final_before_local_fallback_similarity: 0.2922053044319705
+  CC_final_before_local_fallback_maxlag: 0.44458257985487637
+  CC_final_before_local_fallback_env: 0.04497228092357529
+  CC_final_before_local_fallback_best_lag_ms: -1.0000000000000009
+  CC_final_similarity_delta_local_fallback: -0.04972803546379739
+  CC_final_direct_delta_local_fallback: -0.09229808724792132
+  final_peak_metric_p10_before_local_fallback: -14.000000000000012
+  final_peak_metric_med_before_local_fallback: -1.0000000000000009
+  final_peak_metric_p90_before_local_fallback: 0.0
+  final_peak_abs_p90_before_local_fallback: 14.000000000000012
+  final_peak_metric_p10_after_local_fallback: -2.0000000000000018
+  final_peak_metric_med_after_local_fallback: 0.0
+  final_peak_metric_p90_after_local_fallback: 0.0
+  final_peak_abs_p90_after_local_fallback: 2.0000000000000018
+  final_wavelet_energy_l2_median_before_local_fallback: 5.26695090937728
+  final_wavelet_energy_l2_median_after_local_fallback: 3.7721318151256247
+  final_centroid_frequency_hz_median_before_local_fallback: 30.02209916924203
+  final_centroid_frequency_hz_median_after_local_fallback: 28.282293174587643
+  W_pass_scope: preacceptance_hybrid_candidate
+  CC_tv_direct_scope: preacceptance_hybrid_candidate
+  valid_ratio_scope: raw_tv_direct_inversion_centers
+  acceptance_reasons_scope: preacceptance_hybrid_candidate
+  peak_metric_scope: preacceptance_hybrid_candidate
+  best_lag_scope: preacceptance_hybrid_candidate
+  hybrid_acceptance_evaluated: True
+  hybrid_acceptance_passed: True
+  hybrid_acceptance_reasons: []
+  hybrid_acceptance_scope: decisive_preacceptance_hybrid_gate
+  post_local_fallback_acceptance_evaluated: True
+  post_local_fallback_acceptance_passed: True
+  post_local_fallback_acceptance_reasons: []
+  post_local_fallback_acceptance_scope: legacy_alias_of_decisive_preacceptance_hybrid_gate
+  CC_final_ricker_similarity: 0.0017388165135371267
+  CC_final_ricker_maxlag: 0.09949674980679894
+  CC_final_ricker_env: -0.03153547044942684
+  CC_final_ricker_scope: 35hz_initial_reflectivity
+  ricker_qc_frequency_hz: 35.0
+  ricker_qc_wavelet_length_pts: 129
+  CC_ricker_35hz_initial_reflectivity_direct: 0.08053018777090891
+  CC_ricker_35hz_initial_reflectivity_similarity: 0.0017388165135371267
+  CC_ricker_35hz_initial_reflectivity_maxlag: 0.09949674980679894
+  CC_ricker_35hz_initial_reflectivity_env: -0.03153547044942684
+  CC_ricker_35hz_initial_reflectivity_best_lag_ms: -4.0000000000000036
+  CC_ricker_35hz_after_dtw_reflectivity_direct: 0.1348382639136047
+  CC_ricker_35hz_after_dtw_reflectivity_similarity: 0.06629075846590803
+  CC_ricker_35hz_after_dtw_reflectivity_maxlag: 0.13483826391115256
+  CC_ricker_35hz_after_dtw_reflectivity_env: -0.06101175164738958
+  CC_ricker_35hz_after_dtw_reflectivity_best_lag_ms: 0.0
+[Matrix] running configs\ablation\L03_no_mu2_no_lag_gaussian.yaml
+============================================================
+Real-data experiment (CB805): cb805_ablation_L03_no_mu2_no_lag_gaussian
+alignment = center
+result_dir = _experiment_results/ablation/round2_lag/L03_no_mu2_no_lag_gaussian
+============================================================
+  [Ricker prior] use fixed center Ricker before DTW
+  [Ricker prior] f_dom = 28.32 Hz
+  [Ricker prior] wavelet_length_pts = 129
+  [Ricker prior] CC = 0.103651
+[Initial prior] source = center_ricker_for_DTW
+[Initial prior] CC = 0.103651
+  [DTW-iter] phased candidate DTW begins
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.39 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1037 / 0.1191
+  [DTW-envelope] Env before/after = -0.0358 / -0.0530
+  [DTW-envelope] maxlag after = 0.1234, lag = -2.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-envelope] window = 18 samples
+  [DTW-envelope] alpha candidates = [0.0, 0.01, 0.05, 0.1, 0.15]
+  [DTW-envelope] best alpha/sign = 0.150 / -1
+  [DTW-envelope] shift range = -2.40 ~ 2.54 ms
+  [DTW-envelope] CC before/after = 0.1191 / 0.1277
+  [DTW-envelope] Env before/after = -0.0530 / -0.0688
+  [DTW-envelope] maxlag after = 0.1277, lag = 0.0 ms
+  [DTW-envelope] TWT max change = 2.54 ms
+  [DTW-envelope] accept = True
+  [DTW-iter] phase envelope: accepted 2/2
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.77 ms
+  [DTW-waveform] CC before/after = 0.1277 / 0.1385
+  [DTW-waveform] Env before/after = -0.0688 / -0.0667
+  [DTW-waveform] maxlag after = 0.1385, lag = 0.0 ms
+  [DTW-waveform] TWT max change = 0.93 ms
+  [DTW-waveform] accept = True
+  [DTW-waveform] window = 16 samples
+  [DTW-waveform] alpha candidates = [0.0, 0.01, 0.03, 0.06, 0.1]
+  [DTW-waveform] best alpha/sign = 0.100 / +1
+  [DTW-waveform] shift range = -1.30 ~ 0.71 ms
+  [DTW-waveform] CC before/after = 0.1385 / 0.1485
+  [DTW-waveform] Env before/after = -0.0667 / -0.0649
+  [DTW-waveform] maxlag after = 0.1487, lag = -1.0 ms
+  [DTW-waveform] TWT max change = 0.86 ms
+  [DTW-waveform] accept = True
+  [DTW-iter] phase waveform: accepted 2/2
+  [DTW-iter] keep fixed initial wavelet before fine DTW
+  [DTW-fine] window = 9 samples
+  [DTW-fine] alpha candidates = [0.0, 0.01, 0.02, 0.04, 0.06]
+  [DTW-fine] best alpha/sign = 0.060 / +1
+  [DTW-fine] shift range = -0.48 ~ 0.30 ms
+  [DTW-fine] CC before/after = 0.1485 / 0.1554
+  [DTW-fine] Env before/after = -0.0649 / -0.0648
+  [DTW-fine] maxlag after = 0.1555, lag = -1.0 ms
+  [DTW-fine] TWT max change = 0.30 ms
+  [DTW-fine] accept = True
+  [DTW-iter] phase fine: accepted 1/1
+  [Constant-phase prior] statistical amplitude spectrum + constant phase search
+  [Constant-phase prior] spectral peak = 28.00 Hz
+  [Constant-phase prior] auto band = 5.00 - 62.00 Hz
+  [Constant-phase prior] phase = -3.0 deg, peak = +0.0 ms
+  [Constant-phase prior] CC = 0.157126, Ricker CC = 0.155403
+[DTW] CC = 0.155403
+[After-DTW prior] source = statistical_constant_phase_prior_after_DTW
+[After-DTW prior] CC = 0.157126
+
+--- Step 2: 固定 r_work_final，反演时变子波 ---
+========== Robust time-varying wavelet inversion ==========
+  N_time                = 2546
+  dt                    = 0.001000 s
+  wavelet_length        = 129
+  data_window_length    = 387
+  estimate_step_samples = 20
+  estimate_step_ms      = 20.00 ms
+  mu1                   = 0.2
+  mu2                   = 0.0
+  mu_dc                 = 0.0
+  mu_prior              = 1.0
+  mu_time               = 8.0
+  mu_edge               = 1.0
+  edge_fraction         = 0.12
+  edge_taper            = cosine
+  energy_threshold      = 1.162267e-02
+  damping_ratio         = 0.0
+  svd_cutoff_ratio      = 0.001
+  min_effective_rank    = 16
+  max_peak_shift        = 15 samples
+  time_smooth_sigma     = 30.00 samples
+  wavelet_smooth_sigma  = 0.00 samples
+  has_wavelet_prior     = True
+  loss_type             = student_t
+  student_nu            = 10.0
+  irls_max_iter         = 12
+  irls_tol              = 0.0003
+  robust_scale_floor    = 1.953573e-02
+  robust_weight_floor   = 0.001
+  min_effective_ratio   = 0.3
+  outlier_weight_thresh = 0.5
+  store_weight_map      = True
+  attempted windows      = 108
+  valid inverted centers = 70 / 108
+  skipped low energy     = 21
+  skipped ill-cond       = 0
+  skipped NaN/Inf        = 0
+  skipped peak shift     = 17
+  skipped amp jump       = 0
+  robust attempted       = 87
+  irls_step_converged    = 87
+  robust solution used   = 87
+  post_qc_valid (robust) = 70
+  robust fallback to L2  = 0
+  median robust sigma    = 3.234014e-01
+  median weight mean     = 0.9170
+  median effective ratio = 0.9880
+  median qc_dc_ratio     = 1.068e-17
+  median centroid_freq   = 30.19 Hz
+============================================================
+  wavelet_alignment     = center
+
+--- Step 3: W_est 直接合成与质量验收 ---
+  use_negative_W      = False
+  CC_stationary       = 0.1571
+  CC_after_DTW        = 0.1554
+  CC_tv_direct        = 0.4444
+  CC gain vs DTW      = +0.2890
+  CC gain vs stat     = +0.2872
+  Maxlag CC           = 0.4445, lag=-1.0 ms
+  Envelope CC         = 0.0452, gain vs stat=+0.0983
+  Peak metric p10/med/p90 = -13.00 / -1.00 / 0.00 ms
+  wavelet_alignment   = center
+  valid_ratio         = 0.6481481481481481
+  numerical_pass      = True
+  physical_pass       = True
+  W_est pass gate     = True
+[Pre-acceptance hybrid] enabled = True
+[Pre-acceptance hybrid] short gap limit = 60.0 ms
+[Pre-acceptance hybrid] strict reliable sample ratio = 0.016
+[Pre-acceptance hybrid] valid direct centers = 70
+[Pre-acceptance hybrid] strict reliable centers = 41 (0.586)
+[Pre-acceptance hybrid] gray admissible centers = 24 (0.343)
+[Pre-acceptance hybrid] total admissible centers = 65 (0.929)
+[Pre-acceptance hybrid] rejected direct centers = 5 (0.071)
+[Pre-acceptance hybrid] TV support sample ratio = 0.504
+[Pre-acceptance hybrid] short gap ratio = 0.478
+[Pre-acceptance hybrid] hard prior ratio = 0.496
+[Pre-acceptance hybrid] blend ratio = 0.094
+[Pre-acceptance hybrid] raw CC = 0.444354
+[Pre-acceptance hybrid] hybrid CC = 0.352391
+[Pre-acceptance hybrid] raw pass = True
+[Pre-acceptance hybrid] hybrid pass = True
+[Pre-acceptance hybrid] reasons = []
+[Local fallback] enabled = True
+[Local fallback] hard_ratio      = 0.496
+[Local fallback] effective_ratio = 0.506
+[Candidate QC] reliable_ratio  = 0.016
+[Candidate QC] shape_bad_ratio = 0.321
+[Local fallback] shape_ratio     = 0.321
+[Pre-acceptance hybrid] decisive acceptance pass = True; reasons = []
+>>> NEW plot_pure_ricker_vs_obs_vs_tv_wiggle <<<
+[Selected-time QC] fig10
+  target=0.835s selected=0.835s idx=255 raw_idx=255 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.497 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.513s selected=1.513s idx=933 raw_idx=933 direct_inverted=1 strict_reliable=1 admissible_direct=1 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-2.000 wavelet_energy_norm=0.718 side_lobe_ratio=0.714 edge_energy_ratio=0.100
+  target=2.192s selected=2.192s idx=1612 raw_idx=1612 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=0.000 wavelet_energy_norm=0.778 side_lobe_ratio=0.632 edge_energy_ratio=0.052
+  target=2.870s selected=2.870s idx=2290 raw_idx=2290 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.497 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+[Selected-time QC] fig11
+  target=0.835s selected=0.835s idx=255 raw_idx=255 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.497 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.089s selected=1.089s idx=509 raw_idx=509 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.497 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=1.343s selected=1.440s idx=860 raw_idx=763 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-2.000 wavelet_energy_norm=0.853 side_lobe_ratio=0.750 edge_energy_ratio=0.125
+  target=1.598s selected=1.598s idx=1018 raw_idx=1018 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-2.000 wavelet_energy_norm=0.649 side_lobe_ratio=0.678 edge_energy_ratio=0.091
+  target=1.852s selected=1.852s idx=1272 raw_idx=1272 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.497 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+  target=2.107s selected=2.107s idx=1527 raw_idx=1527 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=0.833 final_alpha=0.833 peak_metric_ms=-1.000 wavelet_energy_norm=0.640 side_lobe_ratio=0.622 edge_energy_ratio=0.050
+  target=2.361s selected=2.361s idx=1781 raw_idx=1781 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=0.000 wavelet_energy_norm=0.811 side_lobe_ratio=0.542 edge_energy_ratio=0.027
+  target=2.616s selected=2.616s idx=2036 raw_idx=2036 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=1 hybrid_fallback_requested=0 final_shape_reliable=1 fallback=0 hybrid_alpha=1.000 final_alpha=1.000 peak_metric_ms=-1.000 wavelet_energy_norm=0.825 side_lobe_ratio=0.711 edge_energy_ratio=0.016
+  target=2.870s selected=2.870s idx=2290 raw_idx=2290 direct_inverted=0 strict_reliable=0 admissible_direct=0 gray_zone=0 rejected_direct=0 hybrid_support=0 hybrid_fallback_requested=1 final_shape_reliable=1 fallback=1 hybrid_alpha=0.000 final_alpha=0.000 peak_metric_ms=0.000 wavelet_energy_norm=0.497 side_lobe_ratio=0.438 edge_energy_ratio=0.000
+
+[Final]
+  CC_initial_ricker_before_DTW: 0.1036507646943142
+  CC_stationary: 0.1571262285067304
+  CC_after_DTW: 0.15540264622905386
+  CC_prior_after_DTW: 0.1571262285067304
+  CC_tv_direct: 0.35239108025481675
+  W_pass: True
+  q_pass: False
+  CC_Q: None
+  Q_global: None
+  CC_final: 0.35239108025481675
+  final_model_type: W_est_best_no_Q
+  best_lag_ms: 0.0
+  peak_metric_p10: -2.0000000000000018
+  peak_metric_med: 0.0
+  peak_metric_p90: 0.0
+  peak_abs_p90: 2.0000000000000018
+  valid_ratio: 0.6481481481481481
+  use_negative_W: False
+  acceptance_reasons: []
+  q_reason: q_disabled
+  raw_tv_peak_metric_p10: -13.00000000000001
+  raw_tv_peak_metric_med: -1.0000000000000009
+  raw_tv_peak_metric_p90: 0.0
+  hybrid_direct_reliable_ratio_scope: strict_reliable_samples_over_all_time_samples
+  hybrid_valid_direct_count: 70
+  hybrid_strict_reliable_direct_count: 41
+  hybrid_admissible_direct_count: 65
+  hybrid_gray_zone_direct_count: 24
+  hybrid_rejected_direct_count: 5
+  hybrid_strict_reliable_center_ratio: 0.5857142857142857
+  hybrid_admissible_direct_center_ratio: 0.9285714285714286
+  hybrid_gray_zone_center_ratio: 0.34285714285714286
+  hybrid_rejected_direct_center_ratio: 0.07142857142857142
+  hybrid_strict_reliable_sample_ratio: 0.01610369206598586
+  hybrid_admissible_direct_sample_ratio: 0.025530243519245877
+  hybrid_gray_zone_sample_ratio: 0.009426551453260016
+  hybrid_rejected_direct_sample_ratio: 0.0019638648860958365
+  raw_tv_W_pass: True
+  raw_tv_CC_direct: 0.44435358157644506
+  raw_tv_best_lag_ms: -1.0000000000000009
+  raw_tv_peak_abs_p90: 13.00000000000001
+  raw_tv_acceptance_reasons: []
+  hybrid_tv_W_pass: True
+  hybrid_tv_acceptance_reasons: []
+  hybrid_tv_CC_direct: 0.35239108025481675
+  hybrid_tv_env_cc: 0.03913050048793654
+  hybrid_tv_best_lag_ms: 0.0
+  hybrid_tv_peak_p10_ms: -2.0000000000000018
+  hybrid_tv_peak_median_ms: 0.0
+  hybrid_tv_peak_p90_ms: 0.0
+  hybrid_tv_peak_abs_p90_ms: 2.0000000000000018
+  hybrid_tv_peak_violation_ratio: 0.0
+  hybrid_short_gap_limit_ms: 60.0
+  hybrid_direct_reliable_ratio: 0.01610369206598586
+  hybrid_short_gap_ratio: 0.47800471327572663
+  hybrid_hard_prior_ratio: 0.4964650432050275
+  hybrid_blend_ratio: 0.09426551453260015
+  hybrid_tv_support_ratio: 0.5035349567949725
+  hybrid_candidate_scope: local_repair_before_global_acceptance
+  residual_median_p90: 0.046177140604589564
+  residual_median_med: -0.0008852148634606628
+  tv_loss_type: student_t
+  tv_student_nu: 10.0
+  tv_robust_fallback: l2
+  tv_irls_max_iter: 12
+  tv_irls_tol: 0.0003
+  edge_penalty_enabled: True
+  mu_edge_configured: 1.0
+  mu_edge_effective: 1.0
+  edge_penalty_fraction: 0.12
+  edge_penalty_taper: cosine
+  student_objective_includes_edge: True
+  stationary_candidate_accepted: False
+  stationary_candidate_peak_ms: nan
+  stationary_rejection_code: not_attempted_constant_phase_policy
+  stationary_rejection_reason: after-DTW prior 使用 statistical constant-phase policy，未运行 free-form stationary LS candidate。
+  stationary_prior_source: statistical_constant_phase_prior_after_DTW
+  prior_source: statistical_constant_phase_prior_after_DTW
+  CC_selected_prior_after_DTW: 0.1571262285067304
+  stationary_prior_method_configured: constant_phase
+  constant_phase_candidate_accepted: True
+  constant_phase_deg: -3.0
+  constant_phase_spectral_peak_hz: 27.999999999999975
+  constant_phase_band_low_hz: 4.999999999999996
+  constant_phase_band_high_hz: 61.99999999999994
+  constant_phase_candidate_cc: 0.1571262285067304
+  constant_phase_ricker_cc: 0.15540264622905386
+  constant_phase_rejection_reason: 
+  CC_stationary_raw: nan
+  CC_stationary_raw_env: nan
+  CC_stationary_raw_scope: unlocked_candidate_before_ricker_fallback
+  CC_prior_after_DTW_scope: selected_prior_after_DTW
+  candidate_valid_ratio: 0.6481481481481481
+  candidate_best_lag_ms: -1.0000000000000009
+  candidate_peak_metric_p10: -13.00000000000001
+  candidate_peak_metric_med: -1.0000000000000009
+  candidate_peak_metric_p90: 0.0
+  candidate_peak_abs_p90: 13.00000000000001
+  local_fallback_enabled: True
+  local_fallback_ratio: 0.5058609493499494
+  local_fallback_hard_ratio: 0.4964650432050275
+  local_fallback_effective_ratio: 0.5058609493499494
+  fallback_by_shape_ratio: 0.32128829536527886
+  candidate_shape_fallback_request_ratio: 0.32128829536527886
+  candidate_shape_fallback_raw_ratio: 0.32128829536527886
+  candidate_reliable_ratio: 0.01610369206598586
+  candidate_reliable_scope: direct_inversion_and_peak_energy_shape_qc
+  final_reliable_ratio: 0.8271798900235664
+  final_reliable_scope: shape_peak_energy_only; does_not_mean_direct_inversion
+  side_lobe_p90: 1.0541204292085558
+  edge_energy_p90: 0.21244467404211329
+  candidate_side_lobe_p50: 0.7631453436583698
+  candidate_side_lobe_p90: 1.0541204292085558
+  candidate_side_lobe_max: 1.0541204292085558
+  candidate_edge_energy_p50: 0.11869643651968359
+  candidate_edge_energy_p90: 0.21244467404211329
+  candidate_edge_energy_max: 0.21244467404211329
+  final_side_lobe_p50: 0.5257609647562622
+  final_side_lobe_p90: 0.8295133530313363
+  final_side_lobe_max: 0.8795833205322019
+  final_edge_energy_p50: 0.007384615813868877
+  final_edge_energy_p90: 0.1471240631699567
+  final_edge_energy_max: 0.2042338448125532
+  candidate_boundary_peak_fraction: 0.0
+  final_boundary_peak_fraction: 0.0
+  boundary_peak_fraction_parameter: 0.12
+  candidate_peak_violation_ratio: 0.0
+  candidate_center_step_ms: 20.000000000000018
+  longest_candidate_invalid_gap_ms: 399.9999999999999
+  longest_candidate_unreliable_gap_ms: 680.0
+  candidate_temporal_difference_energy: 0.00011902359880076947
+  final_temporal_difference_energy: 0.005840894778431555
+  irls_iterations_median: 3.0
+  irls_iterations_max: 5
+  candidate_origin_scope: pre_gaussian_fill_lineage
+  candidate_origin_codes: {'direct_inverted_center': 0, 'linear_interpolated': 1, 'endpoint_extrapolated': 2, 'prior_fill_when_no_valid_center': 3, 'unavailable': 5}
+  final_wavelet_source_scope: final_model_and_local_fallback_mix
+  final_wavelet_source_codes: {'tv_candidate': 0, 'q_constrained_candidate': 1, 'stationary_prior': 2, 'local_fallback_prior': 3, 'local_fallback_blend': 4}
+  local_fallback_peak_limit_ms: 15.0
+  local_fallback_energy_min: 0.15
+  local_fallback_pad_ms: 0.0
+  local_fallback_alpha_smooth_samples: 15.0
+  local_fallback_use_shape_qc: True
+  local_fallback_side_lobe_limit_reliable: 0.75
+  local_fallback_side_lobe_limit_fallback: 0.95
+  local_fallback_side_lobe_guard_ms: 12.0
+  local_fallback_edge_energy_limit_reliable: 0.15
+  local_fallback_edge_energy_limit_fallback: 0.3
+  local_fallback_edge_fraction: 0.15
+  CC_final_direct: 0.35239108025481675
+  CC_final_similarity: 0.24274987733541714
+  CC_final_maxlag: 0.3523910802530139
+  CC_final_env: 0.03913050048793654
+  CC_final_best_lag_ms: 0.0
+  CC_final_lag_penalty: 0.0
+  CC_final_before_local_fallback_direct: 0.44435358157644506
+  CC_final_before_local_fallback_similarity: 0.2922228456724335
+  CC_final_before_local_fallback_maxlag: 0.4444831412575935
+  CC_final_before_local_fallback_env: 0.0452050280660315
+  CC_final_before_local_fallback_best_lag_ms: -1.0000000000000009
+  CC_final_similarity_delta_local_fallback: -0.049472968337016365
+  CC_final_direct_delta_local_fallback: -0.09196250132162831
+  final_peak_metric_p10_before_local_fallback: -13.00000000000001
+  final_peak_metric_med_before_local_fallback: -1.0000000000000009
+  final_peak_metric_p90_before_local_fallback: 0.0
+  final_peak_abs_p90_before_local_fallback: 13.00000000000001
+  final_peak_metric_p10_after_local_fallback: -2.0000000000000018
+  final_peak_metric_med_after_local_fallback: 0.0
+  final_peak_metric_p90_after_local_fallback: 0.0
+  final_peak_abs_p90_after_local_fallback: 2.0000000000000018
+  final_wavelet_energy_l2_median_before_local_fallback: 5.327079845292163
+  final_wavelet_energy_l2_median_after_local_fallback: 3.7956857699694595
+  final_centroid_frequency_hz_median_before_local_fallback: 30.19113607353951
+  final_centroid_frequency_hz_median_after_local_fallback: 28.282293174587643
+  W_pass_scope: preacceptance_hybrid_candidate
+  CC_tv_direct_scope: preacceptance_hybrid_candidate
+  valid_ratio_scope: raw_tv_direct_inversion_centers
+  acceptance_reasons_scope: preacceptance_hybrid_candidate
+  peak_metric_scope: preacceptance_hybrid_candidate
+  best_lag_scope: preacceptance_hybrid_candidate
+  hybrid_acceptance_evaluated: True
+  hybrid_acceptance_passed: True
+  hybrid_acceptance_reasons: []
+  hybrid_acceptance_scope: decisive_preacceptance_hybrid_gate
+  post_local_fallback_acceptance_evaluated: True
+  post_local_fallback_acceptance_passed: True
+  post_local_fallback_acceptance_reasons: []
+  post_local_fallback_acceptance_scope: legacy_alias_of_decisive_preacceptance_hybrid_gate
+  CC_final_ricker_similarity: 0.0017388165135371267
+  CC_final_ricker_maxlag: 0.09949674980679894
+  CC_final_ricker_env: -0.03153547044942684
+  CC_final_ricker_scope: 35hz_initial_reflectivity
+  ricker_qc_frequency_hz: 35.0
+  ricker_qc_wavelet_length_pts: 129
+  CC_ricker_35hz_initial_reflectivity_direct: 0.08053018777090891
+  CC_ricker_35hz_initial_reflectivity_similarity: 0.0017388165135371267
+  CC_ricker_35hz_initial_reflectivity_maxlag: 0.09949674980679894
+  CC_ricker_35hz_initial_reflectivity_env: -0.03153547044942684
+  CC_ricker_35hz_initial_reflectivity_best_lag_ms: -4.0000000000000036
+  CC_ricker_35hz_after_dtw_reflectivity_direct: 0.1348382639136047
+  CC_ricker_35hz_after_dtw_reflectivity_similarity: 0.06629075846590803
+  CC_ricker_35hz_after_dtw_reflectivity_maxlag: 0.13483826391115256
+  CC_ricker_35hz_after_dtw_reflectivity_env: -0.06101175164738958
+  CC_ricker_35hz_after_dtw_reflectivity_best_lag_ms: 0.0
+[Matrix] summary: _experiment_results\ablation\round2_lag\lag_summary.csv

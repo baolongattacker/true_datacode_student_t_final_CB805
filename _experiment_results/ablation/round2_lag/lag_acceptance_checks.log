@@ -1,0 +1,4 @@
+L00 CC_final=0.287986024 raw_W_pass= False failed gates: []
+L01 CC_final=0.288468205 raw_W_pass= False failed gates: []
+L02 CC_final=0.352147785 raw_W_pass= True failed gates: ['final_peak_p90_no_increase', 'candidate_Et_increase_le_15pct', 'final_Et_increase_le_15pct']
+L03 CC_final=0.352391080 raw_W_pass= True failed gates: ['final_peak_p90_no_increase', 'candidate_Et_increase_le_15pct', 'final_Et_increase_le_15pct']

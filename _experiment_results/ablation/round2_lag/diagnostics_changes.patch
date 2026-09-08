@@ -1,0 +1,133 @@
+diff --git a/experiments/run_real_experiment.py b/experiments/run_real_experiment.py
+index 4354c9a..0c6a261 100644
+--- a/experiments/run_real_experiment.py
++++ b/experiments/run_real_experiment.py
+@@ -1633,6 +1633,16 @@ def _save_and_plot_results(
+     if extended_wavelet_diagnostics is None:
+         extended_wavelet_diagnostics = {}
+ 
++    if tv.diag.get("store_stage_wavelets", False):
++        # 三个反演快照均为 shape=(N_time, N_wavelet)，只送入结果包。
++        # direct_centers 的 NaN 行由 shape=(N_time,) 的 tv_valid_mask 区分。
++        for stage_name in ("W_direct_centers", "W_pre_gaussian", "W_post_gaussian"):
++            extended_wavelet_diagnostics[stage_name] = tv.diag[stage_name]
++        # hybrid 只能在主流程构造后保存；它是全局验收前的候选，不等同于 W_final。
++        extended_wavelet_diagnostics["W_final_hybrid"] = (
++            extended_wavelet_diagnostics["tv_hybrid_W"]
++        )
++
+     stationary_candidate = after_prior.stationary_candidate_result
+     stationary_candidate_w = (
+         stationary_candidate.w
+@@ -2179,6 +2189,7 @@ def _main_impl(config_path: str):
+             "store_weight_map",
+             False,
+         ),
++        store_stage_wavelets=getattr(cfg.tv_wavelet, "store_stage_wavelets", False),
+         acceptance_config=_build_tv_acceptance_config(cfg),
+         verbose=True,
+     )
+diff --git a/stages/stage_tv_wavelet.py b/stages/stage_tv_wavelet.py
+index 23eef91..f7b8889 100644
+--- a/stages/stage_tv_wavelet.py
++++ b/stages/stage_tv_wavelet.py
+@@ -135,7 +135,15 @@ def run_tv_wavelet_stage(
+     store_weight_map: bool = False,
+     acceptance_config: TvAcceptanceConfig | None = None,
+     verbose: bool = True,
++    store_stage_wavelets: bool = False,
+ ) -> TvWaveletResult:
++    """固定反射系数反演 TV 子波，沿用原有极性选择和物理 QC。
++
++    r_time、obs_work 为等长 shape=(N,) 的反射系数和观测振幅；w_prior 为
++    shape=(L,) 或 (N,L) 的先验子波，dt 单位 s，峰值阈值单位 ms。
++    输出 TvWaveletResult 的 W_raw/W_best 为 shape=(N,L)，振幅单位继承输入。
++    store_stage_wavelets 仅将反演内部快照带入 diag，不改变数学目标或数据流。
++    """
+     r_time = np.asarray(r_time, dtype=float).ravel()
+     obs_work = np.asarray(obs_work, dtype=float).ravel()
+     w_prior = np.asarray(w_prior, dtype=float)
+@@ -220,6 +228,7 @@ def run_tv_wavelet_stage(
+             robust_outlier_weight_threshold
+         ),
+         store_weight_map=store_weight_map,
++        store_stage_wavelets=store_stage_wavelets,
+         return_diagnostics=True,
+         verbose=verbose,
+     )
+diff --git a/utils/wavelet_inversion_robust.py b/utils/wavelet_inversion_robust.py
+index cc74f42..f90cea6 100644
+--- a/utils/wavelet_inversion_robust.py
++++ b/utils/wavelet_inversion_robust.py
+@@ -1334,6 +1334,7 @@ def time_varying_wavelet_inversion(
+     # 输出控制
+     return_diagnostics: bool = False,
+     verbose: bool = True,
++    store_stage_wavelets: bool = False,
+ ) -> np.ndarray | tuple[np.ndarray, dict[str, np.ndarray | int | float]]:
+     """
+     反演时变子波矩阵 W。
+@@ -1353,6 +1354,11 @@ def time_varying_wavelet_inversion(
+     返回：
+         默认返回 W。
+         若 return_diagnostics=True，返回 (W, diagnostics)。
++        同时启用 store_stage_wavelets 时，诊断增加三个 shape=(N, wavelet_length)
++        的独立快照，单位沿用反演子波振幅：W_direct_centers 为通过局部 QC 的
++        直接反演中心，其余行标为 NaN；W_pre_gaussian 为原有填充之后的矩阵；
++        W_post_gaussian 为原有二维 Gaussian 之后、最终去均值之前的矩阵。
++        快照不参与求解、插值、QC 或模型选择；时间和 lag 采样间隔均为 dt (s)。
+     """
+     r_time = np.asarray(r_time, dtype=float).copy()
+     s_obs = np.asarray(s_obs, dtype=float).copy()
+@@ -1422,6 +1428,7 @@ def time_varying_wavelet_inversion(
+         irls_max_iter = int(irls_max_iter)
+ 
+     store_weight_map = bool(store_weight_map)
++    store_stage_wavelets = bool(store_stage_wavelets) and bool(return_diagnostics)
+ 
+     N = len(r_time)
+     wavelet_length = _make_odd(wavelet_length)
+@@ -1809,9 +1816,19 @@ def time_varying_wavelet_inversion(
+         prior_available=w_prior is not None,
+     )
+ 
++    if store_stage_wavelets:
++        # shape=(N, wavelet_length)。只复制已通过局部 QC 的中心子波。
++        # 未反演/被拒绝的行没有直接估计值，用 NaN 标识缺测，不能当作零子波。
++        W_direct_centers = W.copy()
++        W_direct_centers[~valid_mask, :] = np.nan
++
+     # 用线性插值填充稀疏估计点；若一个有效点都没有，则退回 w_prior。
+     W = _fill_unestimated_wavelets(W, valid_mask, w_prior=w_prior)
+ 
++    if store_stage_wavelets:
++        # shape=(N, wavelet_length)。保存原有 fill 的结果，不增加任何插值操作。
++        W_pre_gaussian = W.copy()
++
+     # 反演后平滑。
+     if time_smooth_sigma is not None and wavelet_smooth_sigma is not None:
+         if time_smooth_sigma > 0 or wavelet_smooth_sigma > 0:
+@@ -1821,6 +1838,10 @@ def time_varying_wavelet_inversion(
+                 mode="nearest",
+             )
+ 
++    if store_stage_wavelets:
++        # shape=(N, wavelet_length)。记录 G(W_fill)，尚未执行下一行去均值。
++        W_post_gaussian = W.copy()
++
+     # 平滑后再次去直流，防止二维滤波引入极小 DC。
+     W = W - np.mean(W, axis=1, keepdims=True)
+ 
+@@ -1944,6 +1965,12 @@ def time_varying_wavelet_inversion(
+         "qc_centroid_freq": qc["centroid_freq"],        # 最终平滑后子波的频谱质心频率 (N,)，单位：Hz
+         "qc_bandwidth": qc["bandwidth"],                # 最终平滑后子波的频谱频带宽度 (N,)，单位：Hz
+     }
++    if store_stage_wavelets:
++        diagnostics["store_stage_wavelets"] = True
++        diagnostics["W_direct_centers"] = W_direct_centers
++        diagnostics["W_pre_gaussian"] = W_pre_gaussian
++        diagnostics["W_post_gaussian"] = W_post_gaussian
++
+ #　输出运行参数和日志
+     if verbose:
+         n_valid = int(np.sum(valid_mask))

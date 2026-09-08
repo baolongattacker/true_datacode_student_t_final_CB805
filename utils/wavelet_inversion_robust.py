@@ -56,6 +56,21 @@ def _validate_wavelet_alignment(wavelet_alignment: str) -> str:
         raise ValueError("wavelet_alignment 必须是 'center' 或 'causal'。")
     return wavelet_alignment
 
+
+def _validate_nonnegative_scalar(
+    value: float,
+    name: str,
+) -> float:
+    """Validate a finite non-negative scalar parameter."""
+    array = np.asarray(value, dtype=float)
+    if (
+        array.ndim != 0
+        or not np.isfinite(array)
+        or float(array) < 0.0
+    ):
+        raise ValueError(f"{name} 必须是有限非负数。")
+    return float(array)
+
 def _second_derivative_matrix(n: int) -> np.ndarray:
     """
     构造二阶差分矩阵 D。
@@ -319,19 +334,37 @@ def _solve_regularized_window(
         R_data = sqrt_weight[:, None] * R
         s_data = sqrt_weight * s_win
 
-    A_blocks = [
-        R_data,
-        np.sqrt(mu1 * data_scale) * I,
-        np.sqrt(mu2 * data_scale) * D,
-        np.sqrt(mu_dc * data_scale) * C_dc,
-    ]
+    A_blocks = [R_data]
+    b_blocks = [s_data]
 
-    b_blocks = [
-        s_data,
-        np.zeros(I.shape[0]),
-        np.zeros(D.shape[0]),
-        np.zeros(C_dc.shape[0]),
-    ]
+    # L2 / ridge wavelet-energy regularization.
+    # mu1 == 0 时严格不构造、不追加零块。
+    if mu1 > 0.0:
+        A_blocks.append(
+            np.sqrt(mu1 * data_scale) * I
+        )
+        b_blocks.append(
+            np.zeros(I.shape[0], dtype=float)
+        )
+
+    # Lag-domain second-derivative regularization.
+    # Round 7 暂时保持原有路径；当前生产参数 mu2 = 3.0。
+    A_blocks.append(
+        np.sqrt(mu2 * data_scale) * D
+    )
+    b_blocks.append(
+        np.zeros(D.shape[0], dtype=float)
+    )
+
+    # DC regularization.
+    # mu_dc == 0 时严格不构造、不追加零块。
+    if mu_dc > 0.0:
+        A_blocks.append(
+            np.sqrt(mu_dc * data_scale) * C_dc
+        )
+        b_blocks.append(
+            np.zeros(C_dc.shape[0], dtype=float)
+        )
 
     if prior_i is not None and mu_prior > 0:
         A_blocks.append(np.sqrt(mu_prior * data_scale) * I)
@@ -465,9 +498,12 @@ def _regularization_value(
     """计算与增广最小二乘矩阵一致的二次正则目标值。"""
     w = np.asarray(w, dtype=float)
 
-    value = float(mu1) * float(np.sum(w ** 2))
+    value = 0.0
+    if mu1 > 0.0:
+        value += float(mu1) * float(np.sum(w ** 2))
     value += float(mu2) * float(np.sum((D @ w) ** 2))
-    value += float(mu_dc) * float(np.sum((C_dc @ w) ** 2))
+    if mu_dc > 0.0:
+        value += float(mu_dc) * float(np.sum((C_dc @ w) ** 2))
 
     if prior_i is not None and mu_prior > 0:
         value += float(mu_prior) * float(np.sum((w - prior_i) ** 2))
@@ -852,6 +888,9 @@ def stationary_wavelet_inversion(
     s_obs = s_obs - np.mean(s_obs)
     data_scale = max(np.sum(s_obs ** 2) / N, 1e-12)
 
+    # 注意：平稳子波反演作为先验基线（prior baseline）计算工具，保持独立的参数体系
+    # （如 stationary.mu1=0.5, stationary.mu_dc=15.0）。此处无条件保留 mu1 与 mu_dc 块。
+    # Round 7 的正则精简仅严格针对 TV objective（时变反演目标函数），不影响平稳先验反演。
     A_blocks = [
         R,
         np.sqrt(mu1 * data_scale) * I,
@@ -1334,6 +1373,7 @@ def time_varying_wavelet_inversion(
     # 输出控制
     return_diagnostics: bool = False,
     verbose: bool = True,
+    store_stage_wavelets: bool = False,
 ) -> np.ndarray | tuple[np.ndarray, dict[str, np.ndarray | int | float]]:
     """
     反演时变子波矩阵 W。
@@ -1353,6 +1393,11 @@ def time_varying_wavelet_inversion(
     返回：
         默认返回 W。
         若 return_diagnostics=True，返回 (W, diagnostics)。
+        同时启用 store_stage_wavelets 时，诊断增加三个 shape=(N, wavelet_length)
+        的独立快照，单位沿用反演子波振幅：W_direct_centers 为通过局部 QC 的
+        直接反演中心，其余行标为 NaN；W_pre_gaussian 为原有填充之后的矩阵；
+        W_post_gaussian 为原有二维 Gaussian 之后、最终去均值之前的矩阵。
+        快照不参与求解、插值、QC 或模型选择；时间和 lag 采样间隔均为 dt (s)。
     """
     r_time = np.asarray(r_time, dtype=float).copy()
     s_obs = np.asarray(s_obs, dtype=float).copy()
@@ -1365,14 +1410,12 @@ def time_varying_wavelet_inversion(
         raise ValueError("dt 必须大于 0。")
     wavelet_alignment = _validate_wavelet_alignment(wavelet_alignment)
 
-    mu_edge_value = np.asarray(mu_edge, dtype=float)
-    if (
-        mu_edge_value.ndim != 0
-        or not np.isfinite(mu_edge_value)
-        or float(mu_edge_value) < 0.0
-    ):
-        raise ValueError("mu_edge 必须是有限非负数。")
-    mu_edge = float(mu_edge_value)
+    mu1 = _validate_nonnegative_scalar(mu1, "mu1")
+    mu2 = _validate_nonnegative_scalar(mu2, "mu2")
+    mu_dc = _validate_nonnegative_scalar(mu_dc, "mu_dc")
+    mu_prior = _validate_nonnegative_scalar(mu_prior, "mu_prior")
+    mu_time = _validate_nonnegative_scalar(mu_time, "mu_time")
+    mu_edge = _validate_nonnegative_scalar(mu_edge, "mu_edge")
 
     edge_fraction_value = np.asarray(edge_fraction, dtype=float)
     if (
@@ -1422,6 +1465,7 @@ def time_varying_wavelet_inversion(
         irls_max_iter = int(irls_max_iter)
 
     store_weight_map = bool(store_weight_map)
+    store_stage_wavelets = bool(store_stage_wavelets) and bool(return_diagnostics)
 
     N = len(r_time)
     wavelet_length = _make_odd(wavelet_length)
@@ -1578,6 +1622,15 @@ def time_varying_wavelet_inversion(
         np.arange(data_window_length, dtype=int) - half_data
     )
 
+    active_regularizers = {
+        "mu1": bool(mu1 > 0.0),
+        "mu2": bool(mu2 > 0.0),
+        "mu_dc": bool(mu_dc > 0.0),
+        "mu_prior": bool(mu_prior > 0.0),
+        "mu_time": bool(mu_time > 0.0),
+        "mu_edge": bool(mu_edge > 0.0),
+    }
+
     if verbose:
         print("========== Robust time-varying wavelet inversion ==========")
         print(f"  N_time                = {N}")
@@ -1592,6 +1645,7 @@ def time_varying_wavelet_inversion(
         print(f"  mu_prior              = {mu_prior}")
         print(f"  mu_time               = {mu_time}")
         print(f"  mu_edge               = {mu_edge}")
+        print(f"  active_regularizers   = {active_regularizers}")
         print(f"  edge_fraction         = {edge_fraction}")
         print(f"  edge_taper            = {edge_taper}")
         print(f"  energy_threshold      = {energy_threshold:.6e}")
@@ -1809,8 +1863,18 @@ def time_varying_wavelet_inversion(
         prior_available=w_prior is not None,
     )
 
+    if store_stage_wavelets:
+        # shape=(N, wavelet_length)。只复制已通过局部 QC 的中心子波。
+        # 未反演/被拒绝的行没有直接估计值，用 NaN 标识缺测，不能当作零子波。
+        W_direct_centers = W.copy()
+        W_direct_centers[~valid_mask, :] = np.nan
+
     # 用线性插值填充稀疏估计点；若一个有效点都没有，则退回 w_prior。
     W = _fill_unestimated_wavelets(W, valid_mask, w_prior=w_prior)
+
+    if store_stage_wavelets:
+        # shape=(N, wavelet_length)。保存原有 fill 的结果，不增加任何插值操作。
+        W_pre_gaussian = W.copy()
 
     # 反演后平滑。
     if time_smooth_sigma is not None and wavelet_smooth_sigma is not None:
@@ -1820,6 +1884,10 @@ def time_varying_wavelet_inversion(
                 sigma=(float(time_smooth_sigma), float(wavelet_smooth_sigma)),
                 mode="nearest",
             )
+
+    if store_stage_wavelets:
+        # shape=(N, wavelet_length)。记录 G(W_fill)，尚未执行下一行去均值。
+        W_post_gaussian = W.copy()
 
     # 平滑后再次去直流，防止二维滤波引入极小 DC。
     W = W - np.mean(W, axis=1, keepdims=True)
@@ -1846,8 +1914,9 @@ def time_varying_wavelet_inversion(
         )
         robust_weight_center_indices_array = np.array([], dtype=int)
 
-    diagnostics: dict[str, np.ndarray | int | float | str | tuple[int, int] | None] = {
+    diagnostics: dict[str, object] = {
         "valid_mask": valid_mask,                                      # 布尔掩码 (N,)：指示哪些时间点直接成功反演了子波
+        "active_regularizers": active_regularizers,                   # 真实激活状态布尔字典（便于科研分析与消融溯源）
         "residual_median": diag_residual_median,                      # 最终拟合残差的中位数 (N,)
         "skip_code": diag_skip_code,                    # 决策状态码 (N,)：0-未尝试, 1-成功, 负数-各级拒绝原因
         "effective_rank": diag_effective_rank,          # 局部有效秩 (N,)：局部卷积矩阵在SVD下的有效自由度
@@ -1944,6 +2013,12 @@ def time_varying_wavelet_inversion(
         "qc_centroid_freq": qc["centroid_freq"],        # 最终平滑后子波的频谱质心频率 (N,)，单位：Hz
         "qc_bandwidth": qc["bandwidth"],                # 最终平滑后子波的频谱频带宽度 (N,)，单位：Hz
     }
+    if store_stage_wavelets:
+        diagnostics["store_stage_wavelets"] = True
+        diagnostics["W_direct_centers"] = W_direct_centers
+        diagnostics["W_pre_gaussian"] = W_pre_gaussian
+        diagnostics["W_post_gaussian"] = W_post_gaussian
+
 #　输出运行参数和日志
     if verbose:
         n_valid = int(np.sum(valid_mask))

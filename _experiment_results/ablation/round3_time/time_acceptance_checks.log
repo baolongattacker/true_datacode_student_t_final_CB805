@@ -1,0 +1,4 @@
+T00 CC_final= 0.35214778463743446 valid= 70 failed= []
+T01 CC_final= 0.32366746828358883 valid= 67 failed= ['CC_final_noninferior', 'candidate_normalized_Et_le_15pct']
+T02 CC_final= 0.35208515941787505 valid= 70 failed= ['candidate_normalized_Et_le_15pct']
+T03 CC_final= 0.30579828694687555 valid= 67 failed= ['CC_final_noninferior', 'candidate_normalized_Et_le_15pct', 'final_normalized_Et_le_15pct']
