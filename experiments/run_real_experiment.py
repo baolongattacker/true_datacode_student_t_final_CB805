@@ -2158,6 +2158,15 @@ def select_soft_fallback_strength(
             trial
         )
 
+        print(
+            f"  [Soft Fallback trial beta={beta:.2f}] "
+            f"cc={candidate_eval['similarity']['cc_direct']:.5f} "
+            f"baseline_cc={raw_tv_eval['similarity']['cc_direct']:.5f} "
+            f"cc_drop={guard['cc_drop']:.5f} (max {max_cc_drop:.5f}) "
+            f"roughness={guard['roughness_ratio']:.3f} (max {max_temporal_roughness_ratio:.3f}) "
+            f"passed={guard['passed']} reasons={guard['reasons']}"
+        )
+
         if guard["passed"]:
             return {
                 "accepted": True,
