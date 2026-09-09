@@ -31,6 +31,7 @@ from experiments.run_real_experiment import (
     build_soft_support_anchor_mask,
     build_soft_fallback_reliability,
     apply_final_model_guard,
+    build_origin_alpha_cap,
 )
 
 
@@ -150,6 +151,105 @@ class TestSoftFallbackV2(unittest.TestCase):
 
     # -------------------------------------------------------------
     # Section 16: v2.1 Provenance Cap 单元测试
+    # -------------------------------------------------------------
+    def test_origin_cap_non_extrapolated_is_one(self):
+        """测试用例：非外推区域的 origin_cap 恒为 1.0，距离为 0。"""
+        extrapolated = np.zeros(20, dtype=bool)
+        direct = np.zeros(20, dtype=bool)
+        direct[5:15] = True
+
+        cap, distance = build_origin_alpha_cap(
+            extrapolated_mask=extrapolated,
+            valid_direct_mask=direct,
+            dt=0.001,
+            alpha_near=0.40,
+            alpha_far=0.10,
+            decay_ms=80.0,
+        )
+
+        np.testing.assert_allclose(cap, 1.0)
+        np.testing.assert_allclose(distance, 0.0)
+
+    def test_origin_cap_shallow_decay_is_monotonic(self):
+        """测试用例：浅部外推区域随远离首个有效中心单调高斯衰减。"""
+        n = 300
+        extrapolated = np.zeros(n, dtype=bool)
+        direct = np.zeros(n, dtype=bool)
+
+        direct[200:250] = True
+        extrapolated[:200] = True
+
+        cap, _ = build_origin_alpha_cap(
+            extrapolated_mask=extrapolated,
+            valid_direct_mask=direct,
+            dt=0.001,
+            alpha_near=0.40,
+            alpha_far=0.10,
+            decay_ms=80.0,
+        )
+
+        self.assertTrue(cap[199] > cap[150])
+        self.assertTrue(cap[150] > cap[50])
+        self.assertAlmostEqual(cap[199], 0.40, delta=1e-3)
+        self.assertAlmostEqual(cap[0], 0.10, delta=0.01)
+
+    def test_origin_cap_deep_decay_is_monotonic(self):
+        """测试用例：深部外推区域随远离最后一个有效中心单调衰减。"""
+        n = 300
+        extrapolated = np.zeros(n, dtype=bool)
+        direct = np.zeros(n, dtype=bool)
+
+        direct[50:100] = True
+        extrapolated[100:] = True
+
+        cap, _ = build_origin_alpha_cap(
+            extrapolated_mask=extrapolated,
+            valid_direct_mask=direct,
+            dt=0.001,
+            alpha_near=0.40,
+            alpha_far=0.10,
+            decay_ms=80.0,
+        )
+
+        self.assertTrue(cap[100] > cap[150])
+        self.assertTrue(cap[150] > cap[250])
+
+    def test_origin_cap_survives_beta_zero(self):
+        """测试用例：beta=0 时仍受 origin_cap 严格压制，绝不恢复为 raw TV。"""
+        alpha_soft = np.full(10, 0.3)
+        hard_cap = np.ones(10)
+        origin_cap = np.ones(10)
+        origin_cap[:4] = 0.2
+
+        alpha = build_alpha_for_strength(
+            alpha_soft=alpha_soft,
+            hard_cap=hard_cap,
+            beta=0.0,
+            origin_cap=origin_cap,
+        )
+
+        np.testing.assert_allclose(alpha[:4], 0.2)
+        np.testing.assert_allclose(alpha[4:], 1.0)
+
+    def test_origin_cap_no_valid_direct_is_not_one(self):
+        """测试用例：没有任何直接反演中心时，外推区安全返回 alpha_far，距离为 inf。"""
+        extrapolated = np.ones(20, dtype=bool)
+        direct = np.zeros(20, dtype=bool)
+
+        cap, distance = build_origin_alpha_cap(
+            extrapolated_mask=extrapolated,
+            valid_direct_mask=direct,
+            dt=0.001,
+            alpha_near=0.40,
+            alpha_far=0.10,
+            decay_ms=80.0,
+        )
+
+        np.testing.assert_allclose(cap, 0.10)
+        self.assertTrue(np.all(np.isinf(distance)))
+
+    # -------------------------------------------------------------
+    # Section 17: v2.2 Boundary Amplitude & Shape Veto 单元测试
     # -------------------------------------------------------------
 
 if __name__ == '__main__':

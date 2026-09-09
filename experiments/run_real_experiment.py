@@ -1260,11 +1260,203 @@ def _compose_wavelet_matrix(
     return alpha[:, None] * W_tv + (1.0 - alpha[:, None]) * w_prior[None, :]
 
 
+def build_origin_alpha_cap(
+    *,
+    extrapolated_mask: np.ndarray,
+    valid_direct_mask: np.ndarray,
+    dt: float,
+    alpha_near: float = 0.40,
+    alpha_far: float = 0.10,
+    decay_ms: float = 80.0,
+    transition_ms: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Build a provenance-aware alpha upper bound for endpoint-extrapolated
+    time-varying wavelets.
+
+    Returns
+    -------
+    origin_cap:
+        Alpha upper bound in [0, 1].
+        Non-extrapolated samples have cap=1.
+    extrapolated_distance_ms:
+        Distance to the nearest end of the valid direct-inversion support.
+        Non-extrapolated samples are zero.
+    """
+    extrapolated_mask = np.asarray(
+        extrapolated_mask,
+        dtype=bool,
+    ).ravel()
+
+    valid_direct_mask = np.asarray(
+        valid_direct_mask,
+        dtype=bool,
+    ).ravel()
+
+    if extrapolated_mask.shape != valid_direct_mask.shape:
+        raise ValueError(
+            "extrapolated_mask and valid_direct_mask "
+            "must have identical shape."
+        )
+
+    if extrapolated_mask.size == 0:
+        raise ValueError(
+            "origin masks must be non-empty."
+        )
+
+    dt = float(dt)
+    alpha_near = float(alpha_near)
+    alpha_far = float(alpha_far)
+    decay_ms = float(decay_ms)
+    transition_ms = float(transition_ms)
+
+    if not np.isfinite(dt) or dt <= 0.0:
+        raise ValueError(
+            "dt must be finite and positive."
+        )
+
+    if not (
+        np.isfinite(alpha_far)
+        and np.isfinite(alpha_near)
+        and 0.0 <= alpha_far <= alpha_near <= 1.0
+    ):
+        raise ValueError(
+            "Require 0 <= alpha_far <= alpha_near <= 1."
+        )
+
+    if not np.isfinite(decay_ms) or decay_ms <= 0.0:
+        raise ValueError(
+            "decay_ms must be finite and positive."
+        )
+
+    if not np.isfinite(transition_ms) or transition_ms < 0.0:
+        raise ValueError(
+            "transition_ms must be finite and non-negative."
+        )
+
+    n_time = extrapolated_mask.size
+
+    origin_cap = np.ones(
+        n_time,
+        dtype=float,
+    )
+
+    distance_ms = np.zeros(
+        n_time,
+        dtype=float,
+    )
+
+    if not np.any(extrapolated_mask):
+        return origin_cap, distance_ms
+
+    valid_indices = np.flatnonzero(
+        valid_direct_mask
+    )
+
+    # Safe behavior:
+    # no valid direct inversion => provenance confidence cannot be 1.
+    if valid_indices.size == 0:
+        origin_cap[
+            extrapolated_mask
+        ] = alpha_far
+
+        distance_ms[
+            extrapolated_mask
+        ] = np.inf
+
+        return (
+            np.clip(origin_cap, 0.0, 1.0),
+            distance_ms,
+        )
+
+    first_valid = int(valid_indices[0])
+    last_valid = int(valid_indices[-1])
+
+    indices = np.arange(
+        n_time,
+        dtype=float,
+    )
+
+    shallow_mask = (
+        extrapolated_mask
+        & (indices < first_valid)
+    )
+
+    deep_mask = (
+        extrapolated_mask
+        & (indices > last_valid)
+    )
+
+    distance_samples = np.zeros(
+        n_time,
+        dtype=float,
+    )
+
+    distance_samples[shallow_mask] = (
+        first_valid
+        - indices[shallow_mask]
+    )
+
+    distance_samples[deep_mask] = (
+        indices[deep_mask]
+        - last_valid
+    )
+
+    distance_ms = (
+        distance_samples
+        * dt
+        * 1000.0
+    )
+
+    decay_weight = np.exp(
+        -(
+            distance_ms
+            / decay_ms
+        ) ** 2
+    )
+
+    extrapolated_cap = (
+        alpha_far
+        + (
+            alpha_near
+            - alpha_far
+        )
+        * decay_weight
+    )
+
+    origin_cap[
+        extrapolated_mask
+    ] = extrapolated_cap[
+        extrapolated_mask
+    ]
+
+    # Smooth transition into the valid direct-inversion support if transition_ms > 0
+    if transition_ms > 0.0:
+        transition_samples = int(round(float(transition_ms) / (dt * 1000.0)))
+        if transition_samples > 0:
+            for i in range(transition_samples):
+                t = (i + 1) / (transition_samples + 1)
+                s = t * t * (3.0 - 2.0 * t)  # smoothstep
+                ramp_val = alpha_near + (1.0 - alpha_near) * s
+                idx_shallow = first_valid + i
+                if idx_shallow <= last_valid:
+                    origin_cap[idx_shallow] = min(origin_cap[idx_shallow], ramp_val)
+                idx_deep = last_valid - i
+                if idx_deep >= first_valid:
+                    origin_cap[idx_deep] = min(origin_cap[idx_deep], ramp_val)
+
+    return (
+        np.clip(origin_cap, 0.0, 1.0),
+        distance_ms,
+    )
+
+
 def build_alpha_for_strength(
     *,
     alpha_soft: np.ndarray,
     hard_cap: np.ndarray,
     beta: float,
+    origin_cap: np.ndarray | None = None,
 ) -> np.ndarray:
     alpha_soft = np.asarray(
         alpha_soft,
@@ -1326,27 +1518,6 @@ def build_alpha_for_strength(
         alpha = np.minimum(
             alpha,
             origin_cap,
-        )
-
-    if shape_cap is not None:
-        shape_cap = np.asarray(
-            shape_cap,
-            dtype=float,
-        ).ravel()
-
-        if shape_cap.shape != alpha.shape:
-            raise ValueError(
-                "shape_cap must have identical shape to alpha."
-            )
-
-        if not np.all(np.isfinite(shape_cap)):
-            raise ValueError(
-                "shape_cap must be finite."
-            )
-
-        alpha = np.minimum(
-            alpha,
-            shape_cap,
         )
 
     return np.clip(
@@ -1637,6 +1808,7 @@ def select_soft_fallback_strength(
             alpha_soft=alpha_soft,
             hard_cap=hard_cap,
             beta=beta,
+            origin_cap=origin_cap,
         )
         if sigma_samples > 0.0:
             alpha = gaussian_filter1d(alpha, sigma=sigma_samples, mode="nearest")
@@ -1718,6 +1890,7 @@ def select_soft_fallback_strength(
         alpha_soft=alpha_soft,
         hard_cap=hard_cap,
         beta=0.0,
+        origin_cap=origin_cap,
     )
     if sigma_samples > 0.0:
         alpha_beta0 = gaussian_filter1d(alpha_beta0, sigma=sigma_samples, mode="nearest")
@@ -2146,6 +2319,41 @@ def build_preacceptance_soft_candidate(
     if bool(tv.use_negative):
         prior_for_hybrid = -prior_for_hybrid
 
+    # 6. Soft Fallback revision 模式判断 (v2.0, v2.1, v2.2)
+    revision = str(local_fallback_cfg.get("soft_fallback_revision", "v2.0"))
+    use_origin_cap = revision in {"v2.1", "v2.2"}
+
+    # 来源上限 (Origin-aware alpha cap) 及距离计算
+    if use_origin_cap:
+        extrapolated_alpha_near = float(local_fallback_cfg.get("extrapolated_alpha_near", 0.40))
+        extrapolated_alpha_far = float(local_fallback_cfg.get("extrapolated_alpha_far", 0.10))
+        extrapolation_decay_ms = float(local_fallback_cfg.get("extrapolation_decay_ms", 80.0))
+        origin_transition_ms = float(local_fallback_cfg.get("origin_transition_ms", 40.0))
+        origin_cap, extrapolated_distance_ms = build_origin_alpha_cap(
+            extrapolated_mask=extrapolated_mask,
+            valid_direct_mask=valid_direct_mask,
+            dt=dt,
+            alpha_near=extrapolated_alpha_near,
+            alpha_far=extrapolated_alpha_far,
+            decay_ms=extrapolation_decay_ms,
+            transition_ms=origin_transition_ms,
+        )
+    else:
+        origin_cap = np.ones(n_time, dtype=float)
+        extrapolated_distance_ms = np.zeros(n_time, dtype=float)
+
+    # 细分浅部与深部外推区域掩码
+    valid_indices = np.flatnonzero(valid_direct_mask)
+    if valid_indices.size > 0:
+        first_valid = int(valid_indices[0])
+        last_valid = int(valid_indices[-1])
+        indices = np.arange(n_time)
+        shallow_extrapolated_mask = extrapolated_mask & (indices < first_valid)
+        deep_extrapolated_mask = extrapolated_mask & (indices > last_valid)
+    else:
+        shallow_extrapolated_mask = extrapolated_mask.copy()
+        deep_extrapolated_mask = np.zeros(n_time, dtype=bool)
+
     enabled = bool(local_fallback_cfg.get("enable", False))
 
     if enabled:
@@ -2183,7 +2391,8 @@ def build_preacceptance_soft_candidate(
                 w_prior=prior_for_hybrid,
                 alpha_soft=reliability["alpha_soft"],
                 hard_cap=reliability["hard_cap"],
-                        r_time=r_time,
+                origin_cap=origin_cap,
+                    r_time=r_time,
                 obs_work=obs_work,
                 dt=dt,
                 alignment=alignment,
@@ -2207,7 +2416,8 @@ def build_preacceptance_soft_candidate(
                 alpha_soft=reliability["alpha_soft"],
                 hard_cap=reliability["hard_cap"],
                 beta=1.0,
-                    )
+                origin_cap=origin_cap,
+                )
             W_hybrid = _compose_wavelet_matrix(W_tv_candidate, prior_for_hybrid, alpha)
             selected_beta = 1.0
             hybrid_eval = None
@@ -2650,6 +2860,31 @@ def _save_and_plot_results(
             else None
         ),
     )
+
+    # 额外输出 Soft Fallback v2.1/v2.2 专用诊断图件
+    if "origin_alpha_cap" in extended_wavelet_diagnostics:
+        origin_cap_arr = extended_wavelet_diagnostics["origin_alpha_cap"]
+        extra_mask = extended_wavelet_diagnostics.get(
+            "tv_hybrid_extrapolated_mask",
+            extended_wavelet_diagnostics.get("candidate_extrapolated_mask", np.zeros_like(data.t_work, dtype=bool)),
+        )
+        if np.any(origin_cap_arr < 1.0 - 1e-12) or np.any(extra_mask):
+            from plotting.plot_qc import plot_origin_alpha_cap
+            plot_origin_alpha_cap(
+                result_dir=result_dir,
+                t_work=data.t_work,
+                extrapolated_mask=extra_mask,
+                origin_cap=origin_cap_arr,
+                alpha_before_caps=extended_wavelet_diagnostics.get(
+                    "alpha_before_origin_cap",
+                    extended_wavelet_diagnostics.get("tv_hybrid_alpha", np.ones_like(data.t_work)),
+                ),
+                alpha_final=extended_wavelet_diagnostics.get(
+                    "tv_hybrid_alpha",
+                    np.ones_like(data.t_work),
+                ),
+                filename="fig_origin_alpha_cap.png",
+            )
 
     comparison_cfg = getattr(cfg, "comparison", None)
     comparison_enabled = bool(

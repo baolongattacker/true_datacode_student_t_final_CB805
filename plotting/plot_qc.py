@@ -1348,3 +1348,68 @@ def plot_all(
         filename="fig15_student_t_weight_map.png",
     )
     return paths
+
+
+def plot_origin_alpha_cap(
+    *,
+    result_dir,
+    t_work: np.ndarray,
+    extrapolated_mask: np.ndarray,
+    origin_cap: np.ndarray,
+    alpha_before_caps: np.ndarray,
+    alpha_final: np.ndarray,
+    filename: str = "fig_origin_alpha_cap.png",
+) -> Path:
+    """
+    绘制 Soft Fallback v2.1 来源上限 (Provenance Cap) 诊断图。
+    展示：
+    1. Extrapolated 支撑掩码
+    2. Origin Alpha Cap 距离衰减曲线
+    3. Cap 前后的最终合成权值 alpha 对比与激活区域
+    """
+    result_dir = ensure_dir(result_dir)
+    t_work = np.asarray(t_work, dtype=float).ravel()
+    extrapolated_mask = np.asarray(extrapolated_mask, dtype=bool).ravel()
+    origin_cap = np.asarray(origin_cap, dtype=float).ravel()
+    alpha_before_caps = np.asarray(alpha_before_caps, dtype=float).ravel()
+    alpha_final = np.asarray(alpha_final, dtype=float).ravel()
+
+    fig, axes = plt.subplots(3, 1, figsize=(11, 7), sharex=True)
+
+    # 1. 外推掩码
+    axes[0].set_title("Provenance & Origin Cap Diagnostics (v2.1)\nSupport Lineage", fontsize=10)
+    axes[0].step(t_work, np.asarray(extrapolated_mask, dtype=int), where="mid", color="#d95f02", lw=1.2)
+    axes[0].set_ylabel("Extrapolated")
+    axes[0].set_yticks([0, 1])
+    axes[0].set_yticklabels(["Direct / Support", "Extrapolated"])
+    axes[0].set_ylim(-0.1, 1.1)
+    axes[0].grid(True, alpha=0.25)
+
+    # 2. Origin Cap
+    axes[1].set_title("Origin Alpha Cap C_origin(t)", fontsize=10)
+    axes[1].plot(t_work, origin_cap, color="#7570b3", lw=1.5, label="C_origin(t)")
+    axes[1].axhline(0.40, color="gray", linestyle="--", alpha=0.7, label="Near cap (0.40)")
+    axes[1].axhline(0.10, color="gray", linestyle=":", alpha=0.7, label="Far cap (0.10)")
+    axes[1].set_ylabel("Cap [0, 1]")
+    axes[1].set_ylim(-0.05, 1.05)
+    axes[1].legend(loc="upper right", fontsize=8)
+    axes[1].grid(True, alpha=0.25)
+
+    # 3. Alpha 对比
+    axes[2].set_title("Wavelet Blend Alpha: Before Caps vs Final", fontsize=10)
+    axes[2].plot(t_work, alpha_before_caps, color="#1b9e77", lw=1.2, linestyle="--", label="alpha (before caps)")
+    axes[2].plot(t_work, alpha_final, color="#e7298a", lw=1.5, label="alpha (final)")
+    active_mask = (origin_cap < (1.0 - 1e-12)) & extrapolated_mask
+    if np.any(active_mask):
+        axes[2].fill_between(t_work, 0, 1, where=active_mask, color="#7570b3", alpha=0.15, label="Origin Cap Active")
+    axes[2].set_ylabel("Alpha [0, 1]")
+    axes[2].set_ylim(-0.05, 1.05)
+    axes[2].set_xlabel("TWT (s)")
+    axes[2].legend(loc="upper right", fontsize=8)
+    axes[2].grid(True, alpha=0.25)
+
+    fig.tight_layout()
+    out_path = result_dir / filename
+    fig.savefig(out_path, dpi=200)
+    plt.close(fig)
+    return out_path
