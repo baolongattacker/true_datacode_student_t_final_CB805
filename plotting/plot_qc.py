@@ -1413,3 +1413,75 @@ def plot_origin_alpha_cap(
     fig.savefig(out_path, dpi=200)
     plt.close(fig)
     return out_path
+
+
+def plot_shape_qc_v22(
+    *,
+    result_dir,
+    t_work: np.ndarray,
+    side_lobe_ratio: np.ndarray,
+    edge_energy_ratio: np.ndarray,
+    boundary_amp_ratio: np.ndarray,
+    shape_alpha_cap: np.ndarray,
+    filename: str = "fig_shape_qc_v22.png",
+) -> Path:
+    """
+    绘制 Soft Fallback v2.2 边界振幅与形态否决上限诊断图。
+    展示：
+    1. Side-Lobe Ratio 与阈值线 (0.70 / 0.90 / 1.00)
+    2. Edge Energy Ratio 与阈值线 (0.12 / 0.20)
+    3. Boundary Amplitude Ratio 与阈值线 (0.25 / 0.45 / 0.60)
+    4. Shape Alpha Cap C_shape(t)
+    """
+    result_dir = ensure_dir(result_dir)
+    t_work = np.asarray(t_work, dtype=float).ravel()
+    side_lobe_ratio = np.asarray(side_lobe_ratio, dtype=float).ravel()
+    edge_energy_ratio = np.asarray(edge_energy_ratio, dtype=float).ravel()
+    boundary_amp_ratio = np.asarray(boundary_amp_ratio, dtype=float).ravel()
+    shape_alpha_cap = np.asarray(shape_alpha_cap, dtype=float).ravel()
+
+    fig, axes = plt.subplots(4, 1, figsize=(11, 9), sharex=True)
+
+    # 1. 旁瓣比
+    axes[0].set_title("Shape QC & Veto Diagnostics (v2.2)\nSide-Lobe Ratio", fontsize=10)
+    axes[0].plot(t_work, side_lobe_ratio, color="#1f77b4", lw=1.2)
+    axes[0].axhline(0.70, color="green", linestyle="--", alpha=0.7, label="Reliable (0.70)")
+    axes[0].axhline(0.90, color="orange", linestyle="--", alpha=0.7, label="Fallback (0.90)")
+    axes[0].axhline(1.00, color="red", linestyle="--", alpha=0.7, label="Severe (1.00)")
+    axes[0].set_ylabel("Side-lobe ratio")
+    axes[0].legend(loc="upper right", fontsize=8)
+    axes[0].grid(True, alpha=0.25)
+
+    # 2. 边缘能量比
+    axes[1].set_title("Edge Energy Ratio", fontsize=10)
+    axes[1].plot(t_work, edge_energy_ratio, color="#ff7f0e", lw=1.2)
+    axes[1].axhline(0.12, color="green", linestyle="--", alpha=0.7, label="Reliable (0.12)")
+    axes[1].axhline(0.20, color="orange", linestyle="--", alpha=0.7, label="Fallback (0.20)")
+    axes[1].set_ylabel("Edge energy ratio")
+    axes[1].legend(loc="upper right", fontsize=8)
+    axes[1].grid(True, alpha=0.25)
+
+    # 3. 边界振幅比
+    axes[2].set_title("Boundary Amplitude Ratio", fontsize=10)
+    axes[2].plot(t_work, boundary_amp_ratio, color="#d62728", lw=1.2)
+    axes[2].axhline(0.25, color="green", linestyle="--", alpha=0.7, label="Reliable (0.25)")
+    axes[2].axhline(0.45, color="orange", linestyle="--", alpha=0.7, label="Fallback (0.45)")
+    axes[2].axhline(0.60, color="red", linestyle="--", alpha=0.7, label="Severe (0.60)")
+    axes[2].set_ylabel("Boundary amp ratio")
+    axes[2].legend(loc="upper right", fontsize=8)
+    axes[2].grid(True, alpha=0.25)
+
+    # 4. 形态上限
+    axes[3].set_title("Shape Alpha Cap C_shape(t)", fontsize=10)
+    axes[3].plot(t_work, shape_alpha_cap, color="#9467bd", lw=1.5, label="C_shape(t)")
+    axes[3].set_ylabel("Cap [0, 1]")
+    axes[3].set_ylim(-0.05, 1.05)
+    axes[3].set_xlabel("TWT (s)")
+    axes[3].legend(loc="upper right", fontsize=8)
+    axes[3].grid(True, alpha=0.25)
+
+    fig.tight_layout()
+    out_path = result_dir / filename
+    fig.savefig(out_path, dpi=200)
+    plt.close(fig)
+    return out_path

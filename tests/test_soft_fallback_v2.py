@@ -32,6 +32,8 @@ from experiments.run_real_experiment import (
     build_soft_fallback_reliability,
     apply_final_model_guard,
     build_origin_alpha_cap,
+    compute_boundary_amplitude_ratio,
+    build_shape_alpha_cap,
 )
 
 
@@ -251,6 +253,127 @@ class TestSoftFallbackV2(unittest.TestCase):
     # -------------------------------------------------------------
     # Section 17: v2.2 Boundary Amplitude & Shape Veto 单元测试
     # -------------------------------------------------------------
+    def test_boundary_amplitude_ratio_detects_edge_ringing(self):
+        """测试用例：边界振幅比能灵敏检测到子波两端的截断振荡。"""
+        W = np.zeros((2, 21), dtype=float)
+        W[:, 10] = 1.0
 
-if __name__ == '__main__':
+        W[0, 0] = 0.10
+        W[0, -1] = 0.20
+
+        W[1, 0] = 0.70
+        W[1, -1] = 0.60
+
+        ratio = compute_boundary_amplitude_ratio(W, boundary_fraction=0.05)
+
+        self.assertAlmostEqual(ratio[0], 0.20, delta=1e-6)
+        self.assertAlmostEqual(ratio[1], 0.70, delta=1e-6)
+
+    def test_shape_cap_boundary_three_levels(self):
+        """测试用例：三级边界振幅比阈值 (<=0.25 -> 1.0; <=0.45 -> 0.65; <0.60 -> 0.45; >=0.60 -> 0.25)。"""
+        side = np.array([0.5, 0.5, 0.5, 0.5])
+        edge = np.array([0.05, 0.05, 0.05, 0.05])
+        boundary = np.array([0.20, 0.30, 0.50, 0.70])
+
+        info = build_shape_alpha_cap(
+            side_lobe_ratio=side,
+            edge_energy_ratio=edge,
+            boundary_amp_ratio=boundary,
+            side_lobe_reliable=0.70,
+            side_lobe_fallback=0.90,
+            side_lobe_severe=1.00,
+            edge_energy_reliable=0.12,
+            edge_energy_fallback=0.20,
+            boundary_amp_reliable=0.25,
+            boundary_amp_fallback=0.45,
+            boundary_amp_severe=0.60,
+            unreliable_cap=0.65,
+            fallback_cap=0.45,
+            severe_cap=0.25,
+        )
+
+        np.testing.assert_allclose(
+            info["shape_cap"],
+            np.array([1.00, 0.65, 0.45, 0.25]),
+        )
+
+    def test_shape_cap_side_lobe_unreliable(self):
+        """测试用例：旁瓣比处于 unreliable 区间时激活 0.65 cap。"""
+        info = build_shape_alpha_cap(
+            side_lobe_ratio=np.array([0.808]),
+            edge_energy_ratio=np.array([0.08]),
+            boundary_amp_ratio=np.array([0.23]),
+            side_lobe_reliable=0.70,
+            side_lobe_fallback=0.90,
+            side_lobe_severe=1.00,
+            edge_energy_reliable=0.12,
+            edge_energy_fallback=0.20,
+            boundary_amp_reliable=0.25,
+            boundary_amp_fallback=0.45,
+            boundary_amp_severe=0.60,
+            unreliable_cap=0.65,
+            fallback_cap=0.45,
+            severe_cap=0.25,
+        )
+
+        self.assertAlmostEqual(info["shape_cap"][0], 0.65)
+
+    def test_shape_cap_survives_beta_zero(self):
+        """测试用例：beta=0 时仍然受 shape_cap 压制。"""
+        alpha = build_alpha_for_strength(
+            alpha_soft=np.array([0.99]),
+            hard_cap=np.array([1.0]),
+            beta=0.0,
+            origin_cap=np.array([1.0]),
+            shape_cap=np.array([0.25]),
+        )
+
+        self.assertAlmostEqual(alpha[0], 0.25)
+
+    def test_invalid_shape_metric_is_not_trusted(self):
+        """测试用例：包含 NaN 的未定义形态指标绝不能直接信任，必须压制为 severe_cap。"""
+        info = build_shape_alpha_cap(
+            side_lobe_ratio=np.array([np.nan]),
+            edge_energy_ratio=np.array([0.05]),
+            boundary_amp_ratio=np.array([0.10]),
+            side_lobe_reliable=0.70,
+            side_lobe_fallback=0.90,
+            side_lobe_severe=1.00,
+            edge_energy_reliable=0.12,
+            edge_energy_fallback=0.20,
+            boundary_amp_reliable=0.25,
+            boundary_amp_fallback=0.45,
+            boundary_amp_severe=0.60,
+            unreliable_cap=0.65,
+            fallback_cap=0.45,
+            severe_cap=0.25,
+        )
+
+        self.assertAlmostEqual(info["shape_cap"][0], 0.25)
+
+    # -------------------------------------------------------------
+    # Section 18: 最关键回归测试
+    # -------------------------------------------------------------
+    def test_beta_zero_cannot_bypass_origin_or_shape_caps(self):
+        """关键回归验证：无论 beta 为何值（即使为 0.0），程序绝不能突破 origin_cap 或 shape_cap 物理上限。"""
+        alpha_soft = np.array([0.2, 0.8, 1.0])
+        hard_cap = np.ones(3)
+        origin_cap = np.array([0.10, 1.00, 1.00])
+        shape_cap = np.array([1.00, 0.45, 0.25])
+
+        alpha = build_alpha_for_strength(
+            alpha_soft=alpha_soft,
+            hard_cap=hard_cap,
+            beta=0.0,
+            origin_cap=origin_cap,
+            shape_cap=shape_cap,
+        )
+
+        np.testing.assert_allclose(
+            alpha,
+            np.array([0.10, 0.45, 0.25]),
+        )
+
+
+if __name__ == "__main__":
     unittest.main()

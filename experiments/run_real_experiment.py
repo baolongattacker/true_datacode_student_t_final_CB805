@@ -336,6 +336,275 @@ def compute_edge_energy_ratio(W: np.ndarray, edge_fraction: float) -> np.ndarray
     return edge_energy_ratio
 
 
+def compute_boundary_amplitude_ratio(
+    W: np.ndarray,
+    boundary_fraction: float = 0.05,
+) -> np.ndarray:
+    """
+    Ratio between the largest absolute amplitude near either wavelet boundary
+    and the global wavelet peak amplitude.
+
+    This complements edge-energy QC:
+    edge energy detects integrated leakage, while boundary amplitude detects
+    a strong oscillation directly reaching the finite wavelet boundary.
+    """
+    W = np.asarray(
+        W,
+        dtype=float,
+    )
+
+    if W.ndim != 2:
+        raise ValueError(
+            "W must be a 2-D wavelet matrix."
+        )
+
+    if not np.isfinite(boundary_fraction):
+        raise ValueError(
+            "boundary_fraction must be finite."
+        )
+
+    if not 0.0 < boundary_fraction <= 0.5:
+        raise ValueError(
+            "boundary_fraction must be inside (0, 0.5]."
+        )
+
+    n_time, wavelet_length = W.shape
+
+    if n_time == 0 or wavelet_length == 0:
+        raise ValueError(
+            "W must be non-empty."
+        )
+
+    m = max(
+        1,
+        int(round(
+            float(boundary_fraction)
+            * wavelet_length
+        )),
+    )
+
+    abs_W = np.abs(W)
+
+    finite_row = np.any(
+        np.isfinite(abs_W),
+        axis=1,
+    )
+
+    safe_W = np.where(
+        np.isfinite(abs_W),
+        abs_W,
+        -np.inf,
+    )
+
+    peak = np.max(
+        safe_W,
+        axis=1,
+    )
+
+    left_max = np.max(
+        safe_W[:, :m],
+        axis=1,
+    )
+
+    right_max = np.max(
+        safe_W[:, -m:],
+        axis=1,
+    )
+
+    boundary_max = np.maximum(
+        left_max,
+        right_max,
+    )
+
+    ratio = np.full(
+        n_time,
+        np.nan,
+        dtype=float,
+    )
+
+    valid = (
+        finite_row
+        & np.isfinite(peak)
+        & (peak > 1e-12)
+    )
+
+    ratio[valid] = (
+        boundary_max[valid]
+        / (peak[valid] + 1e-12)
+    )
+
+    return ratio
+
+
+def build_shape_qc_masks(
+    *,
+    side_lobe_ratio: np.ndarray,
+    edge_energy_ratio: np.ndarray,
+    side_lobe_limit_reliable: float,
+    side_lobe_limit_fallback: float,
+    edge_energy_limit_reliable: float,
+    edge_energy_limit_fallback: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """构造候选/最终子波通用的形态合格与严重异常掩码。
+
+    输入数组 shape=(N_time,)，均为无量纲比值。输出两个同 shape 布尔数组：
+    shape_ok_mask 表示旁瓣和边缘能量同时满足可靠阈值；
+    shape_fallback_request_mask 表示至少一个指标超过严重异常阈值。
+    本函数只给出诊断，不直接改变 W 或触发模型分支。
+    """
+    side_lobe_ratio = np.asarray(side_lobe_ratio, dtype=float).ravel()
+    edge_energy_ratio = np.asarray(edge_energy_ratio, dtype=float).ravel()
+    if side_lobe_ratio.size == 0 or side_lobe_ratio.size != edge_energy_ratio.size:
+        raise ValueError("side_lobe_ratio 与 edge_energy_ratio 必须是一维等长非空数组。")
+
+    shape_ok_mask = (
+        np.isfinite(side_lobe_ratio)
+        & np.isfinite(edge_energy_ratio)
+        & (side_lobe_ratio <= side_lobe_limit_reliable)
+        & (edge_energy_ratio <= edge_energy_limit_reliable)
+    )
+    shape_fallback_request_mask = (
+        (
+            np.isfinite(side_lobe_ratio)
+            & (side_lobe_ratio > side_lobe_limit_fallback)
+        )
+        | (
+            np.isfinite(edge_energy_ratio)
+            & (edge_energy_ratio > edge_energy_limit_fallback)
+        )
+    )
+    return shape_ok_mask, shape_fallback_request_mask
+
+
+def build_shape_alpha_cap(
+    *,
+    side_lobe_ratio: np.ndarray,
+    edge_energy_ratio: np.ndarray,
+    boundary_amp_ratio: np.ndarray,
+    side_lobe_reliable: float = 0.70,
+    side_lobe_fallback: float = 0.90,
+    side_lobe_severe: float = 1.00,
+    edge_energy_reliable: float = 0.12,
+    edge_energy_fallback: float = 0.20,
+    boundary_amp_reliable: float = 0.25,
+    boundary_amp_fallback: float = 0.45,
+    boundary_amp_severe: float = 0.60,
+    unreliable_cap: float = 0.65,
+    fallback_cap: float = 0.45,
+    severe_cap: float = 0.25,
+) -> dict:
+    side_lobe_ratio = np.asarray(
+        side_lobe_ratio,
+        dtype=float,
+    ).ravel()
+
+    edge_energy_ratio = np.asarray(
+        edge_energy_ratio,
+        dtype=float,
+    ).ravel()
+
+    boundary_amp_ratio = np.asarray(
+        boundary_amp_ratio,
+        dtype=float,
+    ).ravel()
+
+    if not (
+        side_lobe_ratio.shape
+        == edge_energy_ratio.shape
+        == boundary_amp_ratio.shape
+    ):
+        raise ValueError(
+            "Shape metric arrays must have identical shape."
+        )
+
+    if side_lobe_ratio.size == 0:
+        raise ValueError(
+            "Shape metric arrays must be non-empty."
+        )
+
+    if not (
+        0.0 <= unreliable_cap
+        <= 1.0
+        and 0.0 <= fallback_cap
+        <= 1.0
+        and 0.0 <= severe_cap
+        <= 1.0
+    ):
+        raise ValueError(
+            "All shape alpha caps must lie inside [0, 1]."
+        )
+
+    if not (
+        severe_cap
+        <= fallback_cap
+        <= unreliable_cap
+    ):
+        raise ValueError(
+            "Require severe_cap <= fallback_cap <= unreliable_cap."
+        )
+
+    invalid_mask = (
+        ~np.isfinite(side_lobe_ratio)
+        | ~np.isfinite(edge_energy_ratio)
+        | ~np.isfinite(boundary_amp_ratio)
+    )
+
+    unreliable_mask = (
+        (side_lobe_ratio > side_lobe_reliable)
+        | (edge_energy_ratio > edge_energy_reliable)
+        | (boundary_amp_ratio > boundary_amp_reliable)
+    )
+
+    fallback_mask = (
+        (side_lobe_ratio > side_lobe_fallback)
+        | (edge_energy_ratio > edge_energy_fallback)
+        | (boundary_amp_ratio > boundary_amp_fallback)
+    )
+
+    severe_mask = (
+        (side_lobe_ratio >= side_lobe_severe)
+        | (boundary_amp_ratio >= boundary_amp_severe)
+    )
+
+    cap = np.ones(
+        side_lobe_ratio.size,
+        dtype=float,
+    )
+
+    cap[unreliable_mask] = np.minimum(
+        cap[unreliable_mask],
+        float(unreliable_cap),
+    )
+
+    cap[fallback_mask] = np.minimum(
+        cap[fallback_mask],
+        float(fallback_cap),
+    )
+
+    cap[severe_mask] = np.minimum(
+        cap[severe_mask],
+        float(severe_cap),
+    )
+
+    # Unknown morphology is not treated as trustworthy.
+    cap[invalid_mask] = np.minimum(
+        cap[invalid_mask],
+        float(severe_cap),
+    )
+
+    return {
+        "shape_cap": np.clip(
+            cap,
+            0.0,
+            1.0,
+        ),
+        "shape_unreliable_mask": unreliable_mask,
+        "shape_fallback_mask": fallback_mask,
+        "shape_severe_mask": severe_mask,
+        "shape_invalid_mask": invalid_mask,
+    }
+
+
 def build_final_qc_pass_mask(
     *,
     peak_metric_ms: np.ndarray,
@@ -1457,6 +1726,7 @@ def build_alpha_for_strength(
     hard_cap: np.ndarray,
     beta: float,
     origin_cap: np.ndarray | None = None,
+    shape_cap: np.ndarray | None = None,
 ) -> np.ndarray:
     alpha_soft = np.asarray(
         alpha_soft,
@@ -1518,6 +1788,27 @@ def build_alpha_for_strength(
         alpha = np.minimum(
             alpha,
             origin_cap,
+        )
+
+    if shape_cap is not None:
+        shape_cap = np.asarray(
+            shape_cap,
+            dtype=float,
+        ).ravel()
+
+        if shape_cap.shape != alpha.shape:
+            raise ValueError(
+                "shape_cap must have identical shape to alpha."
+            )
+
+        if not np.all(np.isfinite(shape_cap)):
+            raise ValueError(
+                "shape_cap must be finite."
+            )
+
+        alpha = np.minimum(
+            alpha,
+            shape_cap,
         )
 
     return np.clip(
@@ -1809,6 +2100,7 @@ def select_soft_fallback_strength(
             hard_cap=hard_cap,
             beta=beta,
             origin_cap=origin_cap,
+            shape_cap=shape_cap,
         )
         if sigma_samples > 0.0:
             alpha = gaussian_filter1d(alpha, sigma=sigma_samples, mode="nearest")
@@ -1891,6 +2183,7 @@ def select_soft_fallback_strength(
         hard_cap=hard_cap,
         beta=0.0,
         origin_cap=origin_cap,
+        shape_cap=shape_cap,
     )
     if sigma_samples > 0.0:
         alpha_beta0 = gaussian_filter1d(alpha_beta0, sigma=sigma_samples, mode="nearest")
@@ -2322,6 +2615,7 @@ def build_preacceptance_soft_candidate(
     # 6. Soft Fallback revision 模式判断 (v2.0, v2.1, v2.2)
     revision = str(local_fallback_cfg.get("soft_fallback_revision", "v2.0"))
     use_origin_cap = revision in {"v2.1", "v2.2"}
+    use_shape_cap = (revision == "v2.2")
 
     # 来源上限 (Origin-aware alpha cap) 及距离计算
     if use_origin_cap:
@@ -2353,6 +2647,42 @@ def build_preacceptance_soft_candidate(
     else:
         shallow_extrapolated_mask = extrapolated_mask.copy()
         deep_extrapolated_mask = np.zeros(n_time, dtype=bool)
+
+    # 边界振幅比 (Boundary Amplitude Ratio)
+    boundary_amp_fraction = float(local_fallback_cfg.get("boundary_amp_fraction", 0.05))
+    boundary_amp_ratio = compute_boundary_amplitude_ratio(
+        W_tv_candidate,
+        boundary_fraction=boundary_amp_fraction,
+    )
+
+    # 形态否决上限 (Shape Veto Cap)
+    if use_shape_cap:
+        shape_cap_info = build_shape_alpha_cap(
+            side_lobe_ratio=candidate_side_lobe_ratio,
+            edge_energy_ratio=candidate_edge_energy_ratio,
+            boundary_amp_ratio=boundary_amp_ratio,
+            side_lobe_reliable=float(local_fallback_cfg.get("side_lobe_limit_reliable", 0.70)),
+            side_lobe_fallback=float(local_fallback_cfg.get("side_lobe_limit_fallback", 0.90)),
+            side_lobe_severe=float(local_fallback_cfg.get("side_lobe_limit_severe", 1.00)),
+            edge_energy_reliable=float(local_fallback_cfg.get("edge_energy_limit_reliable", 0.12)),
+            edge_energy_fallback=float(local_fallback_cfg.get("edge_energy_limit_fallback", 0.20)),
+            boundary_amp_reliable=float(local_fallback_cfg.get("boundary_amp_limit_reliable", 0.25)),
+            boundary_amp_fallback=float(local_fallback_cfg.get("boundary_amp_limit_fallback", 0.45)),
+            boundary_amp_severe=float(local_fallback_cfg.get("boundary_amp_limit_severe", 0.60)),
+            unreliable_cap=float(local_fallback_cfg.get("shape_unreliable_alpha_cap", 0.65)),
+            fallback_cap=float(local_fallback_cfg.get("shape_fallback_alpha_cap", 0.45)),
+            severe_cap=float(local_fallback_cfg.get("severe_shape_alpha_cap", 0.25)),
+        )
+        shape_cap = shape_cap_info["shape_cap"]
+    else:
+        shape_cap = np.ones(n_time, dtype=float)
+        shape_cap_info = {
+            "shape_cap": shape_cap,
+            "shape_unreliable_mask": np.zeros(n_time, dtype=bool),
+            "shape_fallback_mask": np.zeros(n_time, dtype=bool),
+            "shape_severe_mask": np.zeros(n_time, dtype=bool),
+            "shape_invalid_mask": np.zeros(n_time, dtype=bool),
+        }
 
     enabled = bool(local_fallback_cfg.get("enable", False))
 
@@ -2392,7 +2722,8 @@ def build_preacceptance_soft_candidate(
                 alpha_soft=reliability["alpha_soft"],
                 hard_cap=reliability["hard_cap"],
                 origin_cap=origin_cap,
-                    r_time=r_time,
+                shape_cap=shape_cap,
+                r_time=r_time,
                 obs_work=obs_work,
                 dt=dt,
                 alignment=alignment,
@@ -2417,7 +2748,8 @@ def build_preacceptance_soft_candidate(
                 hard_cap=reliability["hard_cap"],
                 beta=1.0,
                 origin_cap=origin_cap,
-                )
+                shape_cap=shape_cap,
+            )
             W_hybrid = _compose_wavelet_matrix(W_tv_candidate, prior_for_hybrid, alpha)
             selected_beta = 1.0
             hybrid_eval = None
@@ -2534,6 +2866,14 @@ def build_preacceptance_soft_candidate(
         "alpha_before_origin_cap": alpha_before_origin_cap,
         "alpha_after_origin_cap": alpha_after_origin_cap,
         "origin_cap_active_mask": origin_cap_active_mask,
+        "boundary_amplitude_ratio": boundary_amp_ratio,
+        "shape_alpha_cap": shape_cap,
+        "shape_cap": shape_cap,
+        "shape_cap_active_mask": shape_cap_active_mask,
+        "shape_unreliable_mask": shape_cap_info["shape_unreliable_mask"],
+        "shape_fallback_mask_v22": shape_cap_info["shape_fallback_mask"],
+        "shape_severe_mask": shape_cap_info["shape_severe_mask"],
+        "shape_invalid_mask": shape_cap_info["shape_invalid_mask"],
     }
 
 
@@ -2884,6 +3224,24 @@ def _save_and_plot_results(
                     np.ones_like(data.t_work),
                 ),
                 filename="fig_origin_alpha_cap.png",
+            )
+
+    if "shape_alpha_cap" in extended_wavelet_diagnostics:
+        shape_cap_arr = extended_wavelet_diagnostics["shape_alpha_cap"]
+        rev = str(metrics.get("soft_fallback_revision", "v2.0"))
+        if rev == "v2.2" or np.any(shape_cap_arr < 1.0 - 1e-12):
+            from plotting.plot_qc import plot_shape_qc_v22
+            plot_shape_qc_v22(
+                result_dir=result_dir,
+                t_work=data.t_work,
+                side_lobe_ratio=plot_side_lobe_ratio,
+                edge_energy_ratio=plot_edge_energy_ratio,
+                boundary_amp_ratio=extended_wavelet_diagnostics.get(
+                    "boundary_amplitude_ratio",
+                    np.zeros_like(data.t_work),
+                ),
+                shape_alpha_cap=shape_cap_arr,
+                filename="fig_shape_qc_v22.png",
             )
 
     comparison_cfg = getattr(cfg, "comparison", None)
